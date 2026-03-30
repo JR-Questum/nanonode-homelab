@@ -1,0 +1,3 @@
+# NanoNode Homelab Documentation
+
+Welcome

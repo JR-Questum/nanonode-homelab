@@ -1,0 +1,5 @@
+site_name: NanoNode Homelab
+theme:
+  name: material
+nav:
+  - Home: index.md
