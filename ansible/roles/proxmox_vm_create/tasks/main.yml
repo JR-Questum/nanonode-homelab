@@ -1,0 +1,52 @@
+---
+# ======================================================
+# Proxmox VM Creation Role
+# Creates a VM via the Proxmox API (with VLAN support)
+# ======================================================
+
+- name: "Create or update VM {{ vm_name }} (VMID {{ vmid }})"
+  community.general.proxmox_kvm:
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_host: "{{ proxmox_api_host }}"
+    node: "{{ proxmox_node }}"
+    vmid: "{{ vmid }}"
+    name: "{{ vm_name }}"
+    cores: "{{ vm_cores }}"
+    memory: "{{ vm_memory }}"
+    scsihw: virtio-scsi-pci
+
+    # ===============================
+    # Network Interface WITH VLAN TAG
+    # ===============================
+    net:
+      net0: >-
+        virtio,
+        bridge={{ vm_bridge }}
+        {% if vm_vlan is defined %}
+        ,tag={{ vm_vlan }}
+        {% endif %}
+
+    # Cloud-init and disk config
+    ide:
+      ide2: "local:cloudinit"
+    sata:
+      sata0: "{{ vm_storage }}:{{ vm_disk }}"
+
+    # Create VM if not exists, update if exists
+    state: present
+
+  register: vm_create_result
+
+- name: Show VM creation result
+  debug:
+    var: vm_create_result
+
+- name: Start VM after creation
+  community.general.proxmox_kvm:
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_host: "{{ proxmox_api_host }}"
+    node: "{{ proxmox_node }}"
+    vmid: "{{ vmid }}"
+    state: started

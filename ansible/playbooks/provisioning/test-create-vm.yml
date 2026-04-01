@@ -1,0 +1,27 @@
+---
+- name: Test Proxmox VM Creation
+  hosts: pve1
+  gather_facts: false
+
+  vars:
+    # ============================
+    # VM PARAMETERS 
+    # ============================
+
+    vmid: 950
+    vm_name: "vm_test_ansible"
+    proxmox_node: "pve1"
+
+    # Hardware configuration
+    vm_cores: 2
+    vm_memory: 2048      
+    vm_disk: "20G"       
+    vm_storage: "local-lvm"
+    vm_bridge: "vmbr0"
+    vm_vlan: 30
+
+    # Proxmox API target
+    proxmox_api_host: "{{ ansible_host }}"
+
+  roles:
+    - proxmox_vm_create

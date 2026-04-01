@@ -1,0 +1,25 @@
+# ===========================================================
+# Example inventory for the NanoNode Homelab
+# Copy this file to 'hosts.ini' and replace placeholders
+#
+# IMPORTANT:
+# - hosts.ini should be added to .gitignore
+# ===========================================================
+
+[proxmox]
+# Proxmox nodes 
+pve1 ansible_host=<REPLACE_WITH_IP>
+nano1 ansible_host=<REPLACE_WITH_IP>
+nano2 ansible_host=<REPLACE_WITH_IP>
+nano3 ansible_host=<REPLACE_WITH_IP>
+
+[services]
+# Services
+lxc_traefik ansible_host=<REPLACE_WITH_IP>
+vm_home-assistant ansible_host=<REPLACE_WITH_IP>
+
+
+[all:vars]
+# All nodes use SSH keys
+ansible_user=root
+ansible_ssh_private_key_file=~/.ssh/id_rsa

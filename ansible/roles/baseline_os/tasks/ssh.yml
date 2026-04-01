@@ -1,0 +1,40 @@
+---
+# ==========================================================
+# Install + Enable SSH on LXC Containers and VMs
+# ==========================================================
+
+- name: Install SSH server
+  apt:
+    name: openssh-server
+    state: present
+    update_cache: yes
+
+- name: Ensure SSH service is enabled
+  systemd:
+    name: ssh
+    enabled: yes
+
+- name: Ensure SSH service is running
+  systemd:
+    name: ssh
+    state: started
+
+# ----------------------------------------------------------
+# Install your SSH public key
+# ----------------------------------------------------------
+
+- name: Create .ssh directory for root
+  file:
+    path: /root/.ssh
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+
+- name: Add authorized key for root
+  copy:
+    src: "{{ ansible_ssh_public_key_path }}"
+    dest: /root/.ssh/authorized_keys
+    owner: root
+    group: root
+    mode: '0600'
