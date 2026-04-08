@@ -7,7 +7,9 @@ nav:
   - Home: index.md
   - Hardware:
       - Overview: hardware/overview.md
-      - Power Delivery: hardware/power-delivery-module.md
+      - Power delivery:
+        - Power Delivery: hardware/power-delivery/power-delivery-module.md
+        - Power Delivery build log: hardware/power-delivery/pd-bl.md
 
 markdown_extensions:
   - pymdownx.superfences:

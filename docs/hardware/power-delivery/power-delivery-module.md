@@ -168,7 +168,3 @@ The current concept is based on the following assumptions:
 - a 1U form factor is sufficient for the required electronics and cooling
 
 These assumptions still need to be confirmed during prototyping.
-
----
-
-## Build log
