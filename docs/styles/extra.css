@@ -1,0 +1,4 @@
+pre, code {
+  font-family: "JetBrains Mono", "Fira Mono", "DejaVu Sans Mono", monospace;
+  font-feature-settings: "liga" 0;
+}

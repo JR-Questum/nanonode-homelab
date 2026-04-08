@@ -3,6 +3,9 @@ site_name: NanoNode Homelab
 theme:
   name: material
 
+extra_css:
+  - styles/extra.css
+
 nav:
   - Home: index.md
   - Hardware:
