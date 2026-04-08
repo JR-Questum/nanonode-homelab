@@ -58,39 +58,22 @@ The current concept includes the following features:
 
 ### Power Path
 
-```mermaid
-graph LR
-  PSU[Main Power Supply] --> BUS[DC Bus Bar]
-
-  BUS --> F1[Fuse - Node 1]
-  BUS --> F2[Fuse - Node 2]
-  BUS --> F3[Fuse - Node 3]
-
-  F1 --> M1[Power Monitor - Node 1]
-  F2 --> M2[Power Monitor - Node 2]
-  F3 --> M3[Power Monitor - Node 3]
-
-  M1 --> PD1[USB-C PD Output - Node 1]
-  M2 --> PD2[USB-C PD Output - Node 2]
-  M3 --> PD3[USB-C PD Output - Node 3]
-
-  PD1 --> N1[Node 1]
-  PD2 --> N2[Node 2]
-  PD3 --> N3[Node 3]
-
-  BUS --> B5[5 V Buck Converter]
-  B5 --> ESP[ESP32 Controller]
-  ESP --> DISP[Display]
-```
-
-### Monitoring and Control Path
-
-```mermaid
-graph LR
-  ESP[ESP32 Controller] -. I2C .- INA1[Power Monitor 1]
-  ESP -. I2C .- INA2[Power Monitor 2]
-  ESP -. I2C .- INA3[Power Monitor 3]
-  ESP -. SPI or I2C .- DISP[Display]
+```text
+                                                                                                ┌─────────┐
+                              ┌────────┐     ┌───────────────────┐    ┌───────────────────┐     │█████████│
+                          ┌───○  Fuse  ├─────┤ Power monitoring  ├────┤  USB-C PD module  ├─────┤█ Node1 █│
+                          │   └────────┘     └───────────────────┘    └───────────────────┘     │█████████│
+┌─────────────────────┐   │                                                                     └─────────┘
+│                     ○───┘                                                                     ┌─────────┐
+│                     │       ┌────────┐     ┌───────────────────┐    ┌───────────────────┐     │█████████│
+│    Power Supply     ○───────○  Fuse  ├─────┤ Power monitoring  ├────┤  USB-C PD module  ├─────┤█ Node2 █│
+│                     │       └────────┘     └───────────────────┘    └───────────────────┘     │█████████│
+│                     ○───┐                                                                     └─────────┘
+└─────────────────────┘   │                                                                     ┌─────────┐
+                          │   ┌────────┐     ┌───────────────────┐    ┌───────────────────┐     │█████████│
+                          └───○  Fuse  ├─────┤ Power monitoring  ├────┤  USB-C PD module  ├─────┤█ Node3 █│
+                              └────────┘     └───────────────────┘    └───────────────────┘     │█████████│
+                                                                                                └─────────┘
 ```
 
 ## Functional Overview
