@@ -1,11 +1,13 @@
 
-# Build Log — Iteration 1
+# Build Log
+
+## Iteration 1
 
 ESPHome & Display Integration
 
 This first iteration focuses on bringing up ESPHome on the ESP32 and validating the connection and behavior of the attached  display.
 
-## Scope of This Iteration
+### Scope of This Iteration
 
 - Flash ESPHome on an ESP32  
 - Establish OTA (Wi‑Fi) workflow  
@@ -13,13 +15,13 @@ This first iteration focuses on bringing up ESPHome on the ESP32 and validating 
 - Identify and resolve early display instability issues  
 - Validate basic rendering on the screen  
 
-## Hardware Used
+### Hardware Used
 
 - **1.69" TFT LCD IPS display module**  
   Controller: **ST7789**
 - **ESP‑32S (ESP‑WROOM‑32)**  
 
-## ESPHome Setup
+### ESPHome Setup
 
 Getting ESPHome running on the ESP32 was straightforward:
 
@@ -31,16 +33,16 @@ Getting ESPHome running on the ESP32 was straightforward:
 
 This OTA workflow significantly speeds up development and testing.
 
-## Display Wiring & Connection
+### Display Wiring & Connection
 
 The display was connected to the ESP32 using a breadboard for early testing.  
 After wiring, the ST7789 display was configured using ESPHome’s display component.
 
-### Wiring Schematic
+#### Wiring Schematic
 
 > *Add wiring diagram here*
 
-## Display Resolution Discovery
+### Display Resolution Discovery
 
 During initial testing, the bottom ~40 pixels of the display showed garbled output.
 
@@ -49,7 +51,7 @@ During initial testing, the bottom ~40 pixels of the display showed garbled outp
 
 This discovery explains the visual artifact and was a pleasant surprise, the extra vertical resolution is definitely a bonus.
 
-## Boot Instability & Brownout Issue
+### Boot Instability & Brownout Issue
 
 While flashing the firmware worked reliably, a problem appeared on reset or power‑cycle:
 
@@ -62,7 +64,7 @@ This strongly suggested a brownout or power instability, most likely occurring w
 - the ESP32 boots
 - Wi‑Fi initializes (high current draw)
 
-### Solution Applied
+#### Solution Applied
 
 The issue was resolved by delaying display initialization using:
 
@@ -72,7 +74,7 @@ setup_priority: -100
 
 This postpones the display setup until later in the boot sequence, after the ESP32 and Wi‑Fi have stabilized.
 
-### Planned Improvement
+#### Planned Improvement
 
 To further stabilize the power rail, a small decoupling capacitor will likely be added near the ESP32/display supply in a future iteration.
 
