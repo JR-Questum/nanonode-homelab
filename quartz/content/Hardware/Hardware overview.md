@@ -1,5 +1,6 @@
 ## Compute
 ### Lenovo thinkcenter m720q
+- Intel code i5-8500T @ 2,10Ghz (6 Core)
 - 24gb ram 
 - 512gb m.2 ssd
 ---
