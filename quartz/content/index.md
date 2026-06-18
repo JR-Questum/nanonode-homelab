@@ -43,6 +43,7 @@ A few guiding principles shape this repository:
 If you’re new, start with:
 
 - Just clicking random pages ;)
+- Or if you want to follow some sort of structure you can take a look at the [[Changelog]]
 
 ---
 

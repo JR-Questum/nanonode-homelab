@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Hardware/Compute/Bios Settings.md",
+                "file": "Hardware/Compute/Build Log/iteration 2.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Bios Settings"
+              "title": "iteration 2"
             }
           }
         ]
@@ -185,11 +185,18 @@
   },
   "active": "98fa99d3bf1bac9d",
   "lastOpenFiles": [
-    "Changelog.md",
-    "index.md",
-    "Hardware/Compute/Bios Settings.md",
     "Hardware/Compute/Build Log/iteration 1.md",
+    "Hardware/Compute/Build Log/iteration 2.md",
+    "Changelog.md",
+    "Hardware/Power Delivery/Build Log/iteration 2.md",
     "Hardware/Hardware overview.md",
+    "assets/images/build-log/Node_faceplate_with_node.jpg",
+    "assets/images/build-log/Node_faceplate_without_node.jpg",
+    "assets/images/build-log/Node_faceplate_laser_insert.jpg",
+    "assets/images/build-log/Node_faceplate_inkscape_design.jpg",
+    "assets/images/build-log/Node_faceplate_laser_test.jpg",
+    "Hardware/Compute/Bios Settings.md",
+    "index.md",
     "Hardware/Compute/Lenovo M720q BIOS Configuration.md",
     "Hardware/Compute/Compute Node Module.md",
     "Hardware/Power Delivery/Power Delivery Module.md",
@@ -201,11 +208,7 @@
     "assets/videos/video_2026-06-02_12-00-59.gif",
     "assets/videos",
     "assets/New folder",
-    "Hardware/Power Delivery/Build Log/iteration 2.md",
     "assets/images/build-log/fusion360_compute_faceplate_blank_insert.jpg",
-    "assets/images/build-log/fusion360_compute_faceplate.jpg",
-    "assets/images/build-log/Pasted image 20260603131956.png",
-    "Pasted image 20260603131953.png",
     "Hardware/Compute/Build Log"
   ]
 }
