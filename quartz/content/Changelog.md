@@ -1,6 +1,7 @@
 
 | **Date**   | **Type** | **Link**                                                       | Info                 |
 | ---------- | -------- | -------------------------------------------------------------- | -------------------- |
+| 17/07/2026 | Added    | [[iteration 4]]                                                |                      |
 | 03/07/2026 | Added    | [[iteration 3]]                                                |                      |
 | 18/06/2026 | Added    | [[Hardware/Compute/Build Log/iteration 2\|iteration 2]]        |                      |
 | 06/06/2026 | Added    | [[Bios Settings]]                                              |                      |
