@@ -14,7 +14,7 @@ The BIOS configuration is designed around the following homelab-specific goals:
 
 - minimize boot time for faster reboots and HA failovers
 - reduce idle power consumption across the cluster
-- ensure automatic recovery after power outages
+- ensure automatic recovery after power outages, without overriding a deliberate shutdown
 - maximize compatibility with Linux hypervisors and virtualization features
 - free system resources (RAM, PCIe lanes, interrupts) for guest workloads
 
@@ -24,13 +24,13 @@ The BIOS configuration is designed around the following homelab-specific goals:
 
 Compute nodes in a homelab rack are managed remotely. BIOS settings should reflect this by disabling features that consume resources but provide no value in a headless context, such as audio, excessive video memory, and legacy boot support.
 
-### Power efficiency without sacrificing performance
+### Predictable power efficiency
 
-Power-saving features should be enabled where they do not interfere with workload performance. Modern processors benefit from racing to sleep — boosting quickly to finish tasks and returning to deep idle states — rather than running at reduced clocks for extended periods.
+Power-saving features should be enabled where they do not interfere with workload performance. Idle states are used aggressively, but peak behavior is deliberately capped: these nodes share a single [[Power Delivery Module]], so a flat and predictable power draw is worth more than the last few percent of burst performance.
 
 ### Automatic recovery
 
-A homelab cluster should be able to heal itself after common failure scenarios. BIOS settings must ensure nodes power on automatically after an outage, boot without user intervention, and do not hang waiting for passwords or legacy boot media.
+A homelab cluster should be able to heal itself after common failure scenarios. BIOS settings must ensure nodes that were running when power was lost come back on their own, boot without user intervention, and do not hang waiting for passwords or legacy boot media. A node that was deliberately powered down should stay down, so maintenance is never undone by restoring power.
 
 ### Hypervisor compatibility
 
@@ -101,16 +101,16 @@ These are the settings that are set on each [[Compute Node Module|Node]]
 
 #### CPU Setup
 
-| Setting | Recommended Value | Rationale |
-|---------|-------------------|-----------|
-| EIST Support | Enabled | Enhanced Intel SpeedStep allows the CPU to dynamically adjust voltage and core frequency based on load. |
-| Core Multi-Processing | Enabled | Allows use of all physical and logical cores. |
-| Intel Virtualization Technology (VT-x) | Enabled | Mandatory for Proxmox to run KVM virtual machines efficiently. |
-| VT-d | Enabled | Required for hardware passthrough to VMs — e.g., passing a Coral TPU, GPU, or PCIe network card directly to a guest OS. |
-| TxT | Disabled | Trusted Execution Technology is an enterprise feature unnecessary for homelabs and can occasionally cause hypervisor conflicts. |
-| C1E Support | Enabled | Allows the CPU to halt and save power when idle. |
-| C State Support | C1C3C6C7C8C10 (full range) | Crucial for achieving low idle power figures (5W–10W) on compact Lenovo nodes. |
-| Turbo Mode | Enabled | Processors are designed to race to sleep. Boosting to finish tasks quickly and returning to idle C-states is more power-efficient than sustained base-clock operation. |
+| Setting                                | Recommended Value          | Rationale                                                                                                                                                              |
+| -------------------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| EIST Support                           | Enabled                    | Enhanced Intel SpeedStep allows the CPU to dynamically adjust voltage and core frequency based on load.                                                                |
+| Core Multi-Processing                  | Enabled                    | Allows use of all physical and logical cores.                                                                                                                          |
+| Intel Virtualization Technology (VT-x) | Enabled                    | Mandatory for Proxmox to run KVM virtual machines efficiently.                                                                                                         |
+| VT-d                                   | Enabled                    | Required for hardware passthrough to VMs — e.g., passing a Coral TPU, GPU, or PCIe network card directly to a guest OS.                                                |
+| TxT                                    | Disabled                   | Trusted Execution Technology is an enterprise feature unnecessary for homelabs and can occasionally cause hypervisor conflicts.                                        |
+| C1E Support                            | Enabled                    | Allows the CPU to halt and save power when idle.                                                                                                                       |
+| C State Support                        | C1C3C6C7C8C10 (full range) | Crucial for achieving low idle power figures (5W–10W) on compact Lenovo nodes.                                                                                         |
+| Turbo Mode                             | Disabled                   | Keeps the CPU at its base clock instead of boosting. This gives more predictable performance across the cluster and a lower, flatter power draw, which matters when every node is running off a shared [[Power Delivery Module\|power budget]]. |
 
 #### Intel Software Guard Extensions (SGX)
 
@@ -127,14 +127,14 @@ These are the settings that are set on each [[Compute Node Module|Node]]
 
 ### Power
 
-| Setting | Recommended Value | Rationale |
-|---------|-------------------|-----------|
-| After Power Loss | Power On | Critical for HA clusters. Nodes must turn themselves back on automatically when power returns so the cluster can heal. |
-| Enhanced Power Saving Mode | Enabled | Reduces power draw when the system is shut down but still plugged in. |
-| Smart Power On | Disabled | Keyboard-based boot is unnecessary for a server. |
-| ICE Performance Mode | Better Acoustic Performance | Lenovo nodes run cool naturally. Acoustic mode keeps fans at minimum RPMs, saving power and maintaining silence. Fans will still ramp up if temperatures become dangerous. |
-| ICE Thermal Alert | Enabled | Provides a safeguard against thermal issues. |
-| Wake Up on Alarm | Disabled | Let Proxmox handle HA and uptime; BIOS-level alarms are not required. |
+| Setting                    | Recommended Value           | Rationale                                                                                                                                                                  |
+| -------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| After Power Loss           | Last state                  | Nodes resume only if they were running when power was cut, so the cluster still heals itself after an outage. A node that was manually shut down stays down, which means killing the breaker to work on the electrics does not bring nodes back online the moment power is restored. |
+| Enhanced Power Saving Mode | Enabled                     | Reduces power draw when the system is shut down but still plugged in.                                                                                                      |
+| Smart Power On             | Disabled                    | Keyboard-based boot is unnecessary for a server.                                                                                                                           |
+| ICE Performance Mode       | Better Acoustic Performance | Lenovo nodes run cool naturally. Acoustic mode keeps fans at minimum RPMs, saving power and maintaining silence. Fans will still ramp up if temperatures become dangerous. |
+| ICE Thermal Alert          | Enabled                     | Provides a safeguard against thermal issues.                                                                                                                               |
+| Wake Up on Alarm           | Disabled                    | Let Proxmox handle HA and uptime; BIOS-level alarms are not required.                                                                                                      |
 
 ### Security
 
@@ -165,7 +165,7 @@ Applying these BIOS settings is expected to provide the following practical bene
 
 - faster boot times and shorter HA failover windows
 - lower idle power consumption across the cluster
-- automatic recovery after power outages without manual intervention
+- automatic recovery after power outages without manual intervention, while respecting nodes that were shut down on purpose
 - better resource availability for guest virtual machines
 - fewer compatibility issues with Proxmox, ZFS, and PCIe passthrough
 - more predictable and consistent behavior across all compute nodes

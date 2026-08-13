@@ -4,6 +4,12 @@
 - 24gb ram 
 - 512gb m.2 ssd
 ---
+## Networking
+### Ubiquiti UniFi USW Flex 2.5G 5
+- Ports: 5x 2.5GbE
+- Management: UniFi
+- Cooling: fanless
+---
 ## Power delivery 
 ### ESP‑32S – Monitoring Controller
 - **Module**: ESP‑WROOM‑32
