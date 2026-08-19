@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Changelog.md",
+                "file": "Hardware/Final Build.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Changelog"
+              "title": "Final Build"
             }
           }
         ]
@@ -41,7 +41,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Files"
@@ -185,9 +187,19 @@
   },
   "active": "98fa99d3bf1bac9d",
   "lastOpenFiles": [
-    "index.md",
-    "Changelog.md",
+    "Hardware/Power Delivery/Power Delivery Module.md",
+    "Hardware/Power Delivery/Build Log/iteration 4.md",
+    "Hardware/Final Build.md",
     "Hardware/Hardware overview.md",
+    "Hardware/Compute/Compute Node Module.md",
+    "Hardware/Compute/Build Log/iteration 1.md",
+    "Changelog.md",
+    "index.md",
+    "Software/Proxmox/installation.md",
+    "assets/images/Proxmox/Final_build_faceplates_wood.jpg",
+    "assets/images/Proxmox/Final_build_faceplates_no_wood.jpg",
+    "Hardware/Compute/Build Log/iteration 3.md",
+    "assets/images/Proxmox/Final_build_booted.jpg",
     "Hardware/Power Delivery/Build Log/iteration 3.md",
     "assets/images/build-log/Power_delivery_buck_converter.jpg",
     "assets/images/build-log/Power_delivery_esp32_mounted.jpg",
@@ -200,14 +212,8 @@
     "Hardware/Power Delivery/Build Log/iteration 2.md",
     "Hardware/Power Delivery/skratch.md",
     "Hardware/Power Delivery/Build Log/iteration 3.md.tmp.19712.1b1c88b9b2f4",
-    "Hardware/Compute/Build Log/iteration 1.md",
-    "assets/images/build-log/Node_faceplate_with_node.jpg",
-    "assets/images/build-log/Node_faceplate_without_node.jpg",
-    "assets/images/build-log/Node_faceplate_laser_insert.jpg",
     "Hardware/Compute/Bios Settings.md",
     "Hardware/Compute/Lenovo M720q BIOS Configuration.md",
-    "Hardware/Compute/Compute Node Module.md",
-    "Hardware/Power Delivery/Power Delivery Module.md",
     "Hardware/Power Delivery/Build Log/iteration 1.md",
     "changelog.md",
     "assets/videos",

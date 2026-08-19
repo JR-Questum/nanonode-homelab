@@ -1,6 +1,7 @@
 
 | **Date**   | **Type** | **Link**                                                       | Info                                                  |
 | ---------- | -------- | -------------------------------------------------------------- | ----------------------------------------------------- |
+| 19/08/2026 | Added    | [[Final Build]]                                                |                                                       |
 | 14/08/2026 | Added    | [[installation]]                                               |                                                       |
 | 14/08/2026 | Changed  | [[Bios Settings]]                                              | Turbo mode to `disabled` & power loss to `last state` |
 | 14/08/2026 | Added    | [[Hardware/Compute/Build Log/iteration 3\|iteration 3]]        |                                                       |
