@@ -1,0 +1,4 @@
+---
+configure_proxmox_repos_suite: trixie
+configure_proxmox_repos_keyring: /usr/share/keyrings/proxmox-archive-keyring.gpg
+configure_proxmox_repos_ceph_release: ceph-squid

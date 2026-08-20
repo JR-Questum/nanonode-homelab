@@ -1,0 +1,13 @@
+---
+- name: remove no-valid-subscription dialog
+  ansible.builtin.replace:
+    path: /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+    regexp: '(?<!void\(\{ \/\/)(Ext\.Msg\.show\(\{\s+title: gettext\(''No valid sub)'
+    replace: 'void({ //\1'
+  register: remove_subscription_nag_patch
+
+- name: Restart pveproxy to patch the no-valid-subscription dialog
+  ansible.builtin.systemd_service:
+    name: pveproxy.service
+    state: restarted
+  when: remove_subscription_nag_patch is changed

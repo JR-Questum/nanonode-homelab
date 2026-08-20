@@ -1,0 +1,43 @@
+---
+- name: Create Proxmox VE cluster on primary node
+  community.proxmox.proxmox_cluster:
+    api_host: "{{ hostvars[setup_ha_primary].ansible_host }}"
+    api_user: "{{ vault_proxmox_root_user }}"
+    api_password: "{{ vault_proxmox_root_password }}"
+    validate_certs: true
+    state: present
+    cluster_name: "{{ setup_ha_cluster_name }}"
+    link0: "{{ hostvars[setup_ha_primary].ansible_host }}"
+  run_once: true
+  delegate_to: "{{ setup_ha_primary }}"
+
+- name: Wait for primary node to report a quorate cluster
+  ansible.builtin.command:
+    cmd: pvesh get /cluster/status --output-format json
+  register: setup_ha_primary_status
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: >-
+    setup_ha_primary_status.stdout | from_json
+    | selectattr('type', 'equalto', 'cluster')
+    | map(attribute='quorate') | first | default(0) | int == 1
+  run_once: true
+  delegate_to: "{{ setup_ha_primary }}"
+
+- name: Retrieve Proxmox VE cluster join information
+  community.proxmox.proxmox_cluster_join_info:
+    api_host: "{{ hostvars[setup_ha_primary].ansible_host }}"
+    api_user: "{{ vault_proxmox_root_user }}"
+    api_password: "{{ vault_proxmox_root_password }}"
+    validate_certs: true
+  register: setup_ha_join
+  run_once: true
+  delegate_to: "{{ setup_ha_primary }}"
+
+- name: Join remaining nodes
+  ansible.builtin.include_tasks: join_node.yml
+  loop: "{{ groups['proxmox'] | difference([setup_ha_primary]) }}"
+  loop_control:
+    loop_var: pve_node
+  run_once: true

@@ -1,0 +1,3 @@
+---
+configure_cpu_governor_mode: powersave
+setup_host_install_microcode: true

@@ -1,0 +1,3 @@
+---
+configure_zfs_arc_max_bytes: "{{ configure_zfs_arc_max_gb | int * 1073741824 }}"
+configure_zfs_arc_min_bytes: "{{ configure_zfs_arc_min_gb | int * 1073741824 }}"

@@ -1,0 +1,30 @@
+---
+- name: Ensure Proxmox API client libraries are present
+  ansible.builtin.apt:
+    name: "{{ proxmox_api_prereqs_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Read PVE cluster CA from a cluster member
+  ansible.builtin.slurp:
+    src: "{{ proxmox_api_prereqs_ca_source }}"
+  delegate_to: "{{ proxmox_api_prereqs_ca_node }}"
+  register: proxmox_api_prereqs_ca_blob
+  when: proxmox_api_prereqs_trust_cluster_ca
+
+- name: Install PVE cluster CA into the system trust store
+  ansible.builtin.copy:
+    content: "{{ proxmox_api_prereqs_ca_blob.content | b64decode }}"
+    dest: "{{ proxmox_api_prereqs_ca_dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: proxmox_api_prereqs_trust_cluster_ca
+
+- name: Ensure CA is present in the system trust bundle
+  ansible.builtin.command:
+    cmd: update-ca-certificates
+  register: proxmox_api_prereqs_update_ca
+  changed_when: "'0 added, 0 removed' not in proxmox_api_prereqs_update_ca.stdout"
+  when: proxmox_api_prereqs_trust_cluster_ca

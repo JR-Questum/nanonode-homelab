@@ -4,3 +4,13 @@ node_modules/
 # Build output
 quartz/.quartz-cache/
 quartz/public/
+
+# Private inventory
+ansible/private/
+
+# Galaxy-installed content (see ansible/requirements.yml)
+ansible/collections/
+ansible/.galaxy_roles/
+
+# macOS
+.DS_Store

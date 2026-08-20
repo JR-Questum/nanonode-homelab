@@ -1,0 +1,3 @@
+---
+setup_ha_cluster_name: nanonode
+setup_ha_primary: "{{ groups['proxmox'] | first }}"

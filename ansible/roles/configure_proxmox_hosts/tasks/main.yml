@@ -1,0 +1,104 @@
+---
+- name: Ensure CPU microcode is installed
+  ansible.builtin.apt:
+    name: intel-microcode
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: setup_host_install_microcode
+
+- name: Check whether this host exposes CPU frequency scaling
+  ansible.builtin.stat:
+    path: /sys/devices/system/cpu/cpu0/cpufreq
+  register: configure_cpu_governor_cpufreq
+
+- name: Skip governor configuration when cpufreq is not available
+  ansible.builtin.debug:
+    msg: >-
+      No cpufreq subsystem on this host (virtualised guest, or SpeedStep
+      disabled in BIOS). Skipping governor configuration.
+  when: not configure_cpu_governor_cpufreq.stat.exists
+
+- name: Configure CPU governor
+  when: configure_cpu_governor_cpufreq.stat.exists
+  block:
+    - name: Ensure cpupower management tools are installed
+      ansible.builtin.apt:
+        name: linux-cpupower
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Read governors supported by this CPU's driver
+      ansible.builtin.slurp:
+        src: /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+      register: configure_cpu_governor_available
+
+    - name: Validate requested governor is supported
+      ansible.builtin.assert:
+        that:
+          - configure_cpu_governor_mode in
+            (configure_cpu_governor_available.content | b64decode | trim | split(' '))
+        fail_msg: >-
+          '{{ configure_cpu_governor_mode }}' is not available on this host.
+          Supported governors: {{ configure_cpu_governor_available.content | b64decode | trim }}
+
+    - name: Read currently active governor
+      ansible.builtin.slurp:
+        src: /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+      register: configure_cpu_governor_current
+
+    - name: Set persistent governor in /etc/default/cpupower
+      ansible.builtin.lineinfile:
+        path: /etc/default/cpupower
+        regexp: '^GOVERNOR='
+        line: "GOVERNOR={{ configure_cpu_governor_mode }}"
+        create: true
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Deploy the cpupower governor unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/cpupower.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Apply CPU frequency governor
+          After=multi-user.target
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          EnvironmentFile=/etc/default/cpupower
+          ExecStart=/usr/bin/cpupower frequency-set -g ${GOVERNOR}
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Apply governor to every core immediately
+      ansible.builtin.command:
+        cmd: "cpupower frequency-set -g {{ configure_cpu_governor_mode }}"
+      when: >-
+        (configure_cpu_governor_current.content | b64decode | trim)
+        != configure_cpu_governor_mode
+      changed_when: true
+
+    - name: Ensure the cpupower service reapplies the governor at boot
+      ansible.builtin.systemd_service:
+        name: cpupower
+        enabled: true
+        state: started
+        daemon_reload: true
+
+- name: Enable VLAN awareness on the management bridge
+  ansible.builtin.blockinfile:
+    path: /etc/network/interfaces
+    insertafter: '^iface vmbr0 inet'
+    marker: "# {mark} ANSIBLE MANAGED - vlan awareness"
+    block: |4
+        bridge-vlan-aware yes
+        bridge-vids 2-4094
+  notify: Reload network configuration

@@ -1,0 +1,13 @@
+{% for server in configure_chrony_ntp_servers %}
+server {{ server }} iburst
+{% endfor %}
+
+sourcedir /etc/chrony/conf.d
+confdir /run/chrony-dhcp
+driftfile /var/lib/chrony/chrony.drift
+keyfile /etc/chrony/chrony.keys
+
+makestep {{ configure_chrony_makestep }}
+rtcsync
+leapsectz right/UTC
+logdir /var/log/chrony

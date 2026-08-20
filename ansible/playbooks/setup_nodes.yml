@@ -1,0 +1,31 @@
+---
+- name: Commission Proxmox hardware nodes
+  hosts: proxmox
+  strategy: linear
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    ansible_user: root
+    ansible_become: false
+    ansible_password: "{{ nanonode_root_password }}"
+
+  roles:
+    - configure_hostname
+    - configure_chrony
+    - configure_proxmox_repos
+    - configure_proxmox_hosts
+    - setup_host
+    - configure_zfs
+    - update_system
+    - remove_subscription_nag
+
+- name: Create the Proxmox cluster
+  hosts: proxmox
+  strategy: linear
+  gather_facts: false
+  any_errors_fatal: true
+
+  roles:
+    - proxmox_api_prereqs
+    - setup_ha

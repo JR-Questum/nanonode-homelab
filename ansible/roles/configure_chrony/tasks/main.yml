@@ -1,0 +1,35 @@
+- name: Ensure chrony is installed
+  ansible.builtin.apt:
+    name: "chrony"
+    state: present
+
+- name: Deploy chrony configuration
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: "/etc/chrony/chrony.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  register: deploy_chrony_config
+
+- name: Restart chrony
+  ansible.builtin.systemd_service:
+    name: "chrony"
+    state: restarted
+  when: deploy_chrony_config is changed
+
+- name: Ensure chrony is enabled and running
+  ansible.builtin.systemd_service:
+    name: "chrony"
+    enabled: true
+    state: started
+
+- name: Force timesync with new configuration
+  ansible.builtin.command:
+    cmd: chronyc -a makestep
+  when: deploy_chrony_config is changed
+
+- name: Wait for chrony to synchronise after timesync
+  ansible.builtin.command:
+    cmd: chronyc waitsync
+  when: deploy_chrony_config is changed

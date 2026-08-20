@@ -1,0 +1,50 @@
+---
+- name: Refresh apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    
+- name: Upgrade all packages to their latest version
+  ansible.builtin.apt:
+    upgrade: dist
+    update_cache: true
+    cache_valid_time: 3600
+  environment:
+    NEEDRESTART_MODE: a
+    DEBIAN_FRONTEND: noninteractive
+  register: update_system_upgrade
+
+- name: Remove useless packages from the cache
+  ansible.builtin.apt:
+    autoclean: true
+
+- name: Remove dependencies that are no longer required
+  ansible.builtin.apt:
+    autoremove: true
+
+- name: Check whether a reboot is required
+  ansible.builtin.command:
+    cmd: needrestart -b
+  register: update_system_needrestart
+  changed_when: false
+  check_mode: false
+
+- name: Determine the kernel restart status
+  ansible.builtin.set_fact:
+    update_system_kernel_status: >-
+      {{ update_system_needrestart.stdout_lines
+         | select('match', '^NEEDRESTART-KSTA:')
+         | map('regex_replace', '^NEEDRESTART-KSTA:\s*', '')
+         | first | default('0') | int }}
+
+- name: Restart outdated services without rebooting
+  ansible.builtin.command:
+    cmd: needrestart -r a -b
+  when: update_system_kernel_status < 2
+  changed_when: true
+
+- name: Reboot to activate the new kernel
+  ansible.builtin.reboot:
+    msg: "Rebooting to activate the new kernel"
+    reboot_timeout: 600
+  when: update_system_kernel_status >= 2

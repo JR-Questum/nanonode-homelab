@@ -1,0 +1,25 @@
+---
+setup_host_required_packages:
+  - sudo
+  - python3
+  - openssh-server
+  - ca-certificates
+  - needrestart
+
+setup_host_base_packages:
+  - vim
+  - curl
+  - bind9-dnsutils
+
+setup_host_extra_packages:
+  - git
+  - jq
+  - unzip
+  - rsync
+
+setup_host_install_base_packages: true
+setup_host_install_extra_packages: false
+setup_host_user_passwordless_sudo: true
+
+setup_host_user: ansible
+setup_host_user_public_key_file: ~/.ssh/nanonode.pub

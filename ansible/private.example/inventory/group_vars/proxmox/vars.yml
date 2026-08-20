@@ -1,0 +1,5 @@
+---
+nanonode_root_password: "{{ vault_proxmox_root_password }}"
+setup_cluster_root_password: "{{ nanonode_root_password }}"
+
+setup_cluster_link1_enabled: false

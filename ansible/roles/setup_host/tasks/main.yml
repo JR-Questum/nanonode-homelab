@@ -1,0 +1,51 @@
+---
+- name: Ensure required packages are present
+  ansible.builtin.apt:
+    name: "{{ setup_host_required_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure base tooling is present
+  ansible.builtin.apt:
+    name: "{{ setup_host_base_packages }}"
+    state: present
+  when: setup_host_install_base_packages
+
+- name: Ensure extra tooling is present
+  ansible.builtin.apt:
+    name: "{{ setup_host_extra_packages }}"
+    state: present
+  when: setup_host_install_extra_packages
+
+- name: Ensure management group exists
+  ansible.builtin.group:
+    name: "{{ setup_host_user }}"
+    state: present
+
+- name: Ensure management user exists
+  ansible.builtin.user:
+    name: "{{ setup_host_user }}"
+    group: "{{ setup_host_user }}"
+    groups: sudo
+    append: true
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: Authorise the management SSH key
+  ansible.posix.authorized_key:
+    user: "{{ setup_host_user }}"
+    key: "{{ lookup('ansible.builtin.file', setup_host_user_public_key_file) }}"
+    state: present
+    exclusive: false
+
+- name: Grant passwordless sudo to the management user
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ setup_host_user }}"
+    content: "{{ setup_host_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+  when: setup_host_user_passwordless_sudo

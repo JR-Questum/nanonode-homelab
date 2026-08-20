@@ -1,0 +1,35 @@
+---
+- name: Join {{ pve_node }} 
+  community.proxmox.proxmox_cluster:
+    api_host: "{{ hostvars[pve_node].ansible_host }}"
+    api_user: "{{ vault_proxmox_root_user }}"
+    api_password: "{{ vault_proxmox_root_password }}"
+    validate_certs: false
+    state: present
+    master_ip: "{{ hostvars[setup_ha_primary].ansible_host }}"
+    cluster_name: "{{ setup_ha_cluster_name }}"
+    link0: "{{ hostvars[pve_node].ansible_host }}"
+    fingerprint: >-
+      {{ (setup_ha_join.cluster_join.nodelist
+          | selectattr('name', 'equalto', setup_ha_primary)
+          | first).pve_fp }}
+  when: >-
+    pve_node not in (setup_ha_join.cluster_join.nodelist
+                     | map(attribute='name') | list)
+  register: node_joined
+  delegate_to: "{{ pve_node }}"
+
+- name: Wait for {{ pve_node }} to come online
+  ansible.builtin.command:
+    cmd: pvesh get /cluster/status --output-format json
+  register: setup_ha_status
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: >-
+    setup_ha_status.stdout | from_json
+    | selectattr('type', 'equalto', 'node')
+    | selectattr('name', 'equalto', pve_node)
+    | map(attribute='online') | first | default(0) | int == 1
+  when: node_joined is changed
+  delegate_to: "{{ setup_ha_primary }}"

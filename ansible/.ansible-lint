@@ -1,0 +1,16 @@
+---
+profile: production
+
+exclude_paths:
+  - collections/
+  - .galaxy_roles/
+  - private/
+  - private.example/
+
+skip_list:
+  # Play 1 uses strategy: free deliberately - the nodes are independent and each
+  # does two reboots plus a dist-upgrade. No run_once is used in that play.
+  - run-once[play]
+
+warn_list:
+  - experimental

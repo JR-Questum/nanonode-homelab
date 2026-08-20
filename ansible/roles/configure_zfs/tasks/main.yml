@@ -1,0 +1,42 @@
+---
+- name: Check whether ZFS module is loaded
+  ansible.builtin.stat:
+    path: /sys/module/zfs/parameters/zfs_arc_max
+  register: configure_zfs_module
+
+- name: Configure ZFS ARC limits for the next boot
+  ansible.builtin.copy:
+    content: |
+      options zfs zfs_arc_max={{ configure_zfs_arc_max_bytes }}
+      options zfs zfs_arc_min={{ configure_zfs_arc_min_bytes }}
+    dest: /etc/modprobe.d/zfs.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Rebuild initramfs
+  when: configure_zfs_module.stat.exists
+
+- name: Read running ARC maximum
+  ansible.builtin.slurp:
+    src: /sys/module/zfs/parameters/zfs_arc_max
+  register: configure_zfs_running_arc
+  when: configure_zfs_module.stat.exists
+
+- name: Apply ARC maximum to the running kernel
+  ansible.builtin.shell:
+    cmd: >-
+      echo {{ configure_zfs_arc_max_bytes }}
+      > /sys/module/zfs/parameters/zfs_arc_max
+  when:
+    - configure_zfs_module.stat.exists
+    - (configure_zfs_running_arc.content | b64decode | trim | int)
+      != (configure_zfs_arc_max_bytes | int)
+  changed_when: true
+
+- name: Apply ARC minimum to the running kernel
+  ansible.builtin.shell:
+    cmd: >-
+      echo {{ configure_zfs_arc_min_bytes }}
+      > /sys/module/zfs/parameters/zfs_arc_min
+  when: configure_zfs_module.stat.exists
+  changed_when: false
