@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Software/Ansible/Playbooks/Setup Nodes.md",
+                "file": "Software/Ansible/Roles/Validate Cluster Quorum.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Setup Nodes"
+              "title": "Validate Cluster Quorum"
             }
           }
         ]
@@ -185,6 +185,12 @@
   },
   "active": "98fa99d3bf1bac9d",
   "lastOpenFiles": [
+    "Software/Ansible/Roles/Update System.md",
+    "Software/Ansible/Roles/Ensure HA Maintenance.md",
+    "Software/Ansible/Roles/Check Pending Updates.md",
+    "Software/Ansible/Playbooks/Update Cluster.md",
+    "Software/Ansible/Playbooks/Setup Nodes.md",
+    "Software/Ansible/Roles/Validate Cluster Quorum.md",
     "Changelog.md",
     "Hardware/Final Build.md",
     "assets/images/Proxmox/Final_build_faceplates_wood.jpg",
@@ -193,10 +199,8 @@
     "index.md",
     "Software/Ansible/Ansible overview.md",
     "Software/Ansible/Roles/Setup HA.md",
-    "Software/Ansible/Playbooks/Setup Nodes.md",
     "Software/Ansible/Roles/Proxmox API Prereqs.md",
     "Software/Ansible/Roles/Remove Subscription Nag.md",
-    "Software/Ansible/Roles/Update System.md",
     "Software/Ansible/Roles/Configure ZFS.md",
     "Software/Proxmox/installation.md",
     "Software/Ansible/Roles/Setup Host.md",
@@ -210,9 +214,6 @@
     "Software/Ansible/Playbooks/setup_nodes.md",
     "Software/Ansible/Roles/configure_zfs.md",
     "Software/Ansible/Roles/setup_host.md",
-    "Software/Ansible/Roles/configure_proxmox_hosts.md",
-    "Software/Ansible/Roles/configure_proxmox_repos.md",
-    "Software/Ansible/Roles/configure_hostname.md",
     "Software/Ansible/Roles",
     "Software/Ansible/Playbooks",
     "Software/Ansible",

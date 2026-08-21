@@ -65,6 +65,3 @@ The nodes move through the playbook in lockstep rather than racing ahead indepen
 - High availability itself: no replication jobs, no HA groups, no shutdown policy. See the gaps flagged on [[Setup HA]].
 - No guests. The playbook builds the platform; nothing is deployed onto it yet.
 - The example inventory currently only describes the Proxmox hosts. `group_vars/lxc.yml` is still there, waiting for container hosts to come back into the inventory.
-
-> [!note] A stale comment in the lint config
-> `.ansible-lint` skips a rule with a comment explaining that the first play deliberately runs its nodes in parallel. It does not — both plays run in lockstep. The comment describes an earlier version of the playbook, which probably makes that skip unnecessary now.
