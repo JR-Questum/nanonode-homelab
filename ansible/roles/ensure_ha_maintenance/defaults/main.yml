@@ -1,0 +1,7 @@
+---
+ensure_ha_maintenance_node: "{{ inventory_hostname }}"
+ensure_ha_maintenance_target: "{{ inventory_hostname }}"
+ensure_ha_maintenance_state: disabled
+
+ensure_ha_maintenance_retries: 30
+ensure_ha_maintenance_delay: 10

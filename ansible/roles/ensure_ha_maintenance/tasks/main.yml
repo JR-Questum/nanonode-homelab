@@ -1,0 +1,68 @@
+---
+- name: Validate requested maintenance state
+  ansible.builtin.assert:
+    that:
+      - ensure_ha_maintenance_state in ['enabled', 'disabled']
+    fail_msg: "ensure_ha_maintenance_state must be 'enabled' or 'disabled'"
+    quiet: true
+
+- name: Validate expected node status
+  ansible.builtin.set_fact:
+    ensure_ha_maintenance_expected: >-
+      {{ 'maintenance' if ensure_ha_maintenance_state == 'enabled' else 'online' }}
+
+- name: Read HA manager status
+  ansible.builtin.command:
+    cmd: pvesh get /cluster/ha/status/manager_status --output-format json
+  register: ensure_ha_maintenance_status
+  delegate_to: "{{ ensure_ha_maintenance_target }}"
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Parse HA node status
+  ansible.builtin.set_fact:
+    ensure_ha_maintenance_node_status: >-
+      {{ ((ensure_ha_maintenance_status.stdout | from_json).manager_status
+          | default({})).node_status | default({})
+         if ensure_ha_maintenance_status.rc == 0 else {} }}
+
+- name: Determine whether HA maintenance can be managed for this node
+  ansible.builtin.set_fact:
+    ensure_ha_maintenance_available: >-
+      {{ ensure_ha_maintenance_status.rc == 0
+         and ensure_ha_maintenance_node in ensure_ha_maintenance_node_status }}
+
+- name: Set HA maintenance mode {{ ensure_ha_maintenance_state }}
+  ansible.builtin.command:
+    cmd: >-
+      ha-manager crm-command node-maintenance
+      {{ 'enable' if ensure_ha_maintenance_state == 'enabled' else 'disable' }}
+      {{ ensure_ha_maintenance_node }}
+  register: ensure_ha_maintenance_command
+  delegate_to: "{{ ensure_ha_maintenance_target }}"
+  changed_when: true
+  when:
+    - ensure_ha_maintenance_available | bool
+    - ensure_ha_maintenance_node_status[ensure_ha_maintenance_node]
+      != ensure_ha_maintenance_expected
+
+- name: Wait for node to reach the expected state
+  ansible.builtin.command:
+    cmd: pvesh get /cluster/ha/status/manager_status --output-format json
+  register: ensure_ha_maintenance_wait
+  delegate_to: "{{ ensure_ha_maintenance_target }}"
+  changed_when: false
+  check_mode: false
+  retries: "{{ ensure_ha_maintenance_retries | int }}"
+  delay: "{{ ensure_ha_maintenance_delay | int }}"
+  until: >-
+    ensure_ha_maintenance_wait.rc == 0
+    and ((ensure_ha_maintenance_wait.stdout | from_json).manager_status.node_status[ensure_ha_maintenance_node]
+         | default('unknown')) == ensure_ha_maintenance_expected
+    and (ensure_ha_maintenance_state == 'disabled'
+         or ((ensure_ha_maintenance_wait.stdout | from_json).manager_status.service_status
+             | default({}) | dict2items
+             | selectattr('value.node', 'equalto', ensure_ha_maintenance_node)
+             | list | length) == 0)
+  when: ensure_ha_maintenance_command is changed

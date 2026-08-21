@@ -1,0 +1,62 @@
+---
+- name: Pre-flight cluster check
+  hosts: proxmox
+  strategy: linear
+  gather_facts: false
+  any_errors_fatal: true
+
+  roles:
+    - role: validate_cluster_quorum
+
+- name: Update cluster one node at a time
+  hosts: proxmox
+  strategy: linear
+  serial: 1
+  gather_facts: false
+  any_errors_fatal: true
+
+  pre_tasks:
+    - name: Determine whether the node needs updates
+      ansible.builtin.include_role:
+        name: check_pending_updates
+
+    - name: Prepare the node for its update
+      when: check_pending_updates_required
+      block:
+        - name: Validate that the cluster is quorate and complete
+          ansible.builtin.include_role:
+            name: validate_cluster_quorum
+
+        - name: Drain HA guests
+          ansible.builtin.include_role:
+            name: ensure_ha_maintenance
+          vars:
+            ensure_ha_maintenance_state: enabled
+
+  roles:
+    - role: update_system
+      when: check_pending_updates_required
+    - role: remove_subscription_nag
+
+  post_tasks:
+    - name: Return node to service
+      when: check_pending_updates_required
+      block:
+        - name: Validate that the cluster is quorate and complete
+          ansible.builtin.include_role:
+            name: validate_cluster_quorum
+
+        - name: Return node to normal operation
+          ansible.builtin.include_role:
+            name: ensure_ha_maintenance
+          vars:
+            ensure_ha_maintenance_state: disabled
+
+- name: Post-flight cluster check
+  hosts: proxmox
+  strategy: linear
+  gather_facts: false
+  any_errors_fatal: true
+
+  roles:
+    - role: validate_cluster_quorum

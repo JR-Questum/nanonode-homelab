@@ -1,0 +1,6 @@
+---
+validate_cluster_quorum_target: "{{ inventory_hostname }}"
+validate_cluster_quorum_expect_online: "{{ ansible_play_hosts_all }}"
+
+validate_cluster_quorum_retries: 30
+validate_cluster_quorum_delay: 10

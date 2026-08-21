@@ -1,0 +1,59 @@
+---
+- name: Wait for a quorate and complete cluster as seen from {{ validate_cluster_quorum_target }}
+  ansible.builtin.command:
+    cmd: pvesh get /cluster/status --output-format json
+  register: validate_cluster_quorum_status
+  delegate_to: "{{ validate_cluster_quorum_target }}"
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  retries: "{{ validate_cluster_quorum_retries | int }}"
+  delay: "{{ validate_cluster_quorum_delay | int }}"
+  until: >-
+    validate_cluster_quorum_status.rc == 0
+    and (validate_cluster_quorum_status.stdout | from_json
+         | selectattr('type', 'equalto', 'cluster')
+         | map(attribute='quorate') | first | default(0) | int) == 1
+    and (validate_cluster_quorum_expect_online
+         | difference(validate_cluster_quorum_status.stdout | from_json
+                      | selectattr('type', 'equalto', 'node')
+                      | selectattr('online', 'defined')
+                      | selectattr('online', 'equalto', 1)
+                      | map(attribute='name') | list)) | length == 0
+
+- name: Fail when cluster status could not be read
+  ansible.builtin.assert:
+    that:
+      - validate_cluster_quorum_status.rc == 0
+    fail_msg: >-
+      Could not read the cluster status from {{ validate_cluster_quorum_target }}:
+      {{ validate_cluster_quorum_status.stderr | default('no error output') }}
+    quiet: true
+
+- name: Parse cluster status
+  ansible.builtin.set_fact:
+    validate_cluster_quorum_quorate: >-
+      {{ (validate_cluster_quorum_status.stdout | from_json
+          | selectattr('type', 'equalto', 'cluster')
+          | map(attribute='quorate') | first | default(0) | int) == 1 }}
+    validate_cluster_quorum_missing: >-
+      {{ validate_cluster_quorum_expect_online
+         | difference(validate_cluster_quorum_status.stdout | from_json
+                      | selectattr('type', 'equalto', 'node')
+                      | selectattr('online', 'defined')
+                      | selectattr('online', 'equalto', 1)
+                      | map(attribute='name') | list) }}
+
+- name: Fail when the cluster is not quorate or not complete
+  ansible.builtin.assert:
+    that:
+      - validate_cluster_quorum_quorate | bool
+      - validate_cluster_quorum_missing | length == 0
+    fail_msg: >-
+      Cluster is not healthy as seen from {{ validate_cluster_quorum_target }} -
+      quorate: {{ validate_cluster_quorum_quorate }},
+      nodes not online: {{ validate_cluster_quorum_missing | join(', ') | default('none', true) }}
+    success_msg: >-
+      Cluster is quorate and all {{ validate_cluster_quorum_expect_online | length }}
+      expected nodes are online
+    quiet: true
