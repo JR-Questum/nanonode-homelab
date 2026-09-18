@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh the radio's album cover every {{ deploy_airable_artwork_interval }}s
+
+[Timer]
+OnBootSec={{ deploy_airable_artwork_interval }}
+OnUnitActiveSec={{ deploy_airable_artwork_interval }}
+AccuracySec=5
+Unit={{ deploy_airable_artwork_name }}.service
+
+[Install]
+WantedBy=timers.target

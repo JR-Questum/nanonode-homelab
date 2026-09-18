@@ -1,0 +1,101 @@
+---
+- name: Assert the target node exists in the inventory
+  ansible.builtin.assert:
+    that: setup_lxc_node in hostvars
+    fail_msg: "setup_lxc_node '{{ setup_lxc_node }}' is not an inventory host."
+    quiet: true
+
+- name: Assert required container variables are defined
+  ansible.builtin.assert:
+    that: _setup_lxc_missing | length == 0
+    fail_msg: "setup_lxc: missing required variable(s): {{ _setup_lxc_missing | join(', ') }}"
+    quiet: true
+  vars:
+    _setup_lxc_required:
+      setup_lxc_vmid: "{{ setup_lxc_vmid }}"
+      setup_lxc_node: "{{ setup_lxc_node }}"
+      setup_lxc_template_name: "{{ setup_lxc_template_name }}"
+      setup_lxc_ip: "{{ setup_lxc_ip }}"
+      setup_lxc_root_password: "{{ setup_lxc_root_password }}"
+    _setup_lxc_missing: >-
+      {{ _setup_lxc_required | dict2items
+         | selectattr('value', 'none') | map(attribute='key') | list }}
+
+- name: Assert container feature values are integers
+  ansible.builtin.assert:
+    that: setup_lxc_features.values() | reject('integer') | list | length == 0
+    fail_msg: >-
+      setup_lxc_features values must be 1 or 0, not YAML booleans
+      (true renders as "nesting=True", which pct rejects).
+    quiet: true
+
+- name: Ensure the LXC template is present
+  community.proxmox.proxmox_template:
+    api_host: "{{ hostvars[setup_lxc_node].ansible_host }}"
+    api_user: "{{ vault_proxmox_root_user }}"
+    api_password: "{{ vault_proxmox_root_password }}"
+    validate_certs: true
+    node: "{{ setup_lxc_node }}"
+    storage: "{{ setup_lxc_template_storage }}"
+    content_type: vztmpl
+    template: "{{ setup_lxc_template_name }}"
+    state: present
+  delegate_to: "{{ setup_lxc_node }}"
+
+- name: Ensure container exists with the desired configuration
+  community.proxmox.proxmox:
+    api_host: "{{ hostvars[setup_lxc_node].ansible_host }}"
+    api_user: "{{ vault_proxmox_root_user }}"
+    api_password: "{{ vault_proxmox_root_password }}"
+    validate_certs: true
+    node: "{{ setup_lxc_node }}"
+    vmid: "{{ setup_lxc_vmid }}"
+    hostname: "{{ setup_lxc_hostname }}"
+    description: "{{ setup_lxc_description }}"
+    ostemplate: "{{ setup_lxc_ostemplate }}"
+    unprivileged: "{{ setup_lxc_unprivileged }}"
+    onboot: "{{ setup_lxc_onboot }}"
+    cores: "{{ setup_lxc_cores }}"
+    memory: "{{ setup_lxc_memory }}"
+    swap: "{{ setup_lxc_swap }}"
+    disk_volume:
+      storage: "{{ setup_lxc_disk_storage }}"
+      size: "{{ setup_lxc_disk_size }}"
+    netif:
+      net0: "{{ _setup_lxc_net0 }}"
+    features: "{{ setup_lxc_features.items() | map('join', '=') | list or omit }}"
+    password: "{{ setup_lxc_root_password }}"
+    pubkey: "{{ setup_lxc_pubkeys | default(omit, true) }}"
+    timeout: "{{ setup_lxc_timeout }}"
+    state: present
+  delegate_to: "{{ setup_lxc_node }}"
+  vars:
+    _setup_lxc_net0: >-
+      {{ (['name=' ~ setup_lxc_netif_name,
+           'bridge=' ~ setup_lxc_bridge,
+           'ip=' ~ setup_lxc_ip]
+          + (['gw=' ~ setup_lxc_gateway] if setup_lxc_gateway else [])
+          + (['tag=' ~ setup_lxc_vlan_tag] if setup_lxc_vlan_tag else []))
+         | join(',') }}
+
+# Both the hostname and the retry are about the same thing: the module
+# reads the guest from /cluster/resources, which pvestatd only refreshes
+# every few seconds. Seconds after a create, that entry can still be
+# missing its name - the module falls back to it when no hostname is
+# given, and dies on the missing key - or be missing altogether.
+- name: Ensure container {{ setup_lxc_vmid }} is running
+  community.proxmox.proxmox:
+    api_host: "{{ hostvars[setup_lxc_node].ansible_host }}"
+    api_user: "{{ vault_proxmox_root_user }}"
+    api_password: "{{ vault_proxmox_root_password }}"
+    validate_certs: true
+    vmid: "{{ setup_lxc_vmid }}"
+    hostname: "{{ setup_lxc_hostname }}"
+    timeout: "{{ setup_lxc_timeout }}"
+    state: started
+  delegate_to: "{{ setup_lxc_node }}"
+  when: setup_lxc_state == 'started'
+  register: setup_lxc_started
+  until: setup_lxc_started is not failed
+  retries: 6
+  delay: 5

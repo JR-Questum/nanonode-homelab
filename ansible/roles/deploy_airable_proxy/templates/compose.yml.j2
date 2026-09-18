@@ -1,0 +1,67 @@
+services:
+  tap:
+    image: {{ deploy_airable_proxy_image }}
+    container_name: {{ deploy_airable_proxy_stack_name }}
+    restart: unless-stopped
+    ports:
+{% for spec in deploy_airable_proxy_ports %}
+      - "{{ spec.split(':')[0] }}:{{ spec.split(':')[0] }}"
+{% endfor %}
+{% if deploy_airable_proxy_status_port | int > 0 %}
+      - "127.0.0.1:{{ deploy_airable_proxy_status_port }}:{{ deploy_airable_proxy_status_port }}"
+{% endif %}
+    environment:
+      AIRABLE_TAP_UPSTREAM: "{{ deploy_airable_proxy_upstream }}"
+      AIRABLE_TAP_PORTS: "{{ deploy_airable_proxy_ports | join(',') }}"
+      AIRABLE_TAP_LOG: /var/log/airable/airable.jsonl
+      AIRABLE_TAP_LOG_MAX_BYTES: "{{ deploy_airable_proxy_log_max_bytes }}"
+      AIRABLE_TAP_MAX_BODY: "{{ deploy_airable_proxy_max_body }}"
+      AIRABLE_TAP_CONNECT_TIMEOUT: "{{ deploy_airable_proxy_connect_timeout }}"
+      AIRABLE_TAP_IDLE_TIMEOUT: "{{ deploy_airable_proxy_idle_timeout }}"
+      AIRABLE_TAP_STATUS_PORT: "{{ deploy_airable_proxy_status_port }}"
+{% if deploy_airable_proxy_probe | bool %}
+      AIRABLE_TAP_CERT: /tls/{{ deploy_airable_proxy_cert | basename }}
+      AIRABLE_TAP_KEY: /tls/{{ deploy_airable_proxy_key | basename }}
+      AIRABLE_TAP_CIPHERS: "{{ deploy_airable_proxy_ciphers }}"
+      AIRABLE_TAP_PROBE_MAX_FAILURES: "{{ deploy_airable_proxy_probe_max_failures }}"
+      AIRABLE_TAP_UPSTREAM_HOST: "{{ deploy_airable_proxy_upstream_host }}"
+      AIRABLE_TAP_UPSTREAM_VERIFY: "{{ 1 if deploy_airable_proxy_upstream_verify else 0 }}"
+{% if deploy_airable_proxy_rewrites %}
+      AIRABLE_TAP_REWRITES_FILE: /app/rewrites.json
+{% endif %}
+{% if deploy_airable_proxy_assets or deploy_airable_proxy_live_assets %}
+      AIRABLE_TAP_ASSETS_FILE: /app/assets.json
+{% endif %}
+{% endif %}
+    volumes:
+      - ./airable_tap.py:/app/airable_tap.py:ro
+      - ./summarize.py:/app/summarize.py:ro
+{% if deploy_airable_proxy_rewrites %}
+      - ./rewrites.json:/app/rewrites.json:ro
+{% endif %}
+{% if deploy_airable_proxy_assets or deploy_airable_proxy_live_assets %}
+      - ./assets.json:/app/assets.json:ro
+{% endif %}
+{% for src in deploy_airable_proxy_assets.values() %}
+      - ./asset_{{ src | basename }}:/app/asset_{{ src | basename }}:ro
+{% endfor %}
+{% if deploy_airable_proxy_live_assets %}
+      - {{ deploy_airable_proxy_artwork_dir }}:/artwork:ro
+{% endif %}
+      - {{ deploy_airable_proxy_log_dir }}:/var/log/airable:rw
+{% if deploy_airable_proxy_probe | bool %}
+      - {{ deploy_airable_proxy_cert_dir }}:/tls:ro
+{% endif %}
+      # Log lines are timestamped in local time so they line up with the
+      # wall clock while pressing buttons on the radio.
+      - /etc/localtime:/etc/localtime:ro
+    # -u so docker logs -f streams live rather than in block-buffered lumps.
+    command: ["python3", "-u", "/app/airable_tap.py"]
+{% if deploy_airable_proxy_status_port | int > 0 %}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:{{ deploy_airable_proxy_status_port }}/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+{% endif %}

@@ -1,0 +1,28 @@
+---
+install_docker_users: []
+
+# present installs and leaves alone; latest upgrades the packages to
+# whatever the Docker repository currently offers. update_homeassistant.yml
+# sets latest, so an update run and a deploy run share this one package
+# list and one daemon configuration.
+install_docker_package_state: present
+
+install_docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+install_docker_apt_uri: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}"
+install_docker_apt_key_url: "{{ install_docker_apt_uri }}/gpg"
+install_docker_apt_key_path: /etc/apt/keyrings/docker.asc
+
+install_docker_daemon_config:
+  log-driver: json-file
+  log-opts:
+    max-size: "10m"
+    max-file: "3"
+  live-restore: true
+
+install_docker_daemon_config_extra: {}

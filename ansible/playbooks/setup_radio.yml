@@ -1,0 +1,26 @@
+---
+#- name: Provision and bootstrap the radio container
+#  ansible.builtin.import_playbook: setup_lxc.yml
+#  vars:
+#    setup_lxc_hosts: ct-radio
+
+
+- name: Deploy the radio host
+  hosts: ct-radio
+
+  roles:
+    - role: install_docker
+    - role: deploy_radio_core
+    - role: deploy_playlist_aggregator
+    - role: deploy_autodj
+    - role: deploy_ollama
+    - role: deploy_radio_scheduler
+    # Fills the station name, slogan, description and logo the M-9000S
+    # shows for the local stream. Needs Docker, and needs DNS rewrites in
+    # AdGuard pointing the wifiradiofrontier names at this host.
+    - role: deploy_airable_proxy
+    - role: deploy_airable_artwork
+
+  post_tasks:
+    - name: Reset connection to pick up docker group membership
+      ansible.builtin.meta: reset_connection

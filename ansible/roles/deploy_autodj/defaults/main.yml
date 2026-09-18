@@ -1,0 +1,31 @@
+---
+deploy_autodj_stack_name: autodj
+deploy_autodj_root: /srv/radio
+deploy_autodj_data_dir: "{{ deploy_autodj_root }}/data"
+deploy_autodj_db_name: nanonode.db
+
+# go-librespot, Icecast and Liquidsoap's telnet all bind to the host's
+# loopback, so this container shares the host network namespace.
+deploy_autodj_api: "http://127.0.0.1:3678"
+deploy_autodj_ws: "ws://127.0.0.1:3678/events"
+deploy_autodj_icecast_status: "http://127.0.0.1:8000/status-json.xsl"
+deploy_autodj_mount: /nanonode
+deploy_autodj_telnet_host: "127.0.0.1"
+deploy_autodj_telnet_port: 1234
+
+# The voice directory as LIQUIDSOAP sees it.
+deploy_autodj_voice_mount: /media/voice
+
+deploy_autodj_window_hours: 168
+deploy_autodj_kids_ratio: 0.3
+deploy_autodj_idle_seconds: 60
+deploy_autodj_poll_seconds: 10
+
+# DJ links: a spoken intro every N tracks, N chosen randomly in range.
+deploy_autodj_dj_enabled: true
+deploy_autodj_dj_min_gap: 3
+deploy_autodj_dj_max_gap: 5
+
+# Suppress a link if the station spoke recently - stops a DJ intro
+# landing straight after the news or weather.
+deploy_autodj_voice_suppress_minutes: 10

@@ -1,0 +1,11 @@
+---
+_ha_sid: "{{ configure_ha_resource_guest_type }}:{{ configure_ha_resource_vmid }}"
+
+_ha_rule_name: "nanonode-{{ configure_ha_resource_guest_type }}-{{ configure_ha_resource_vmid }}"
+
+_ha_rule_nodes: >-
+  {{ configure_ha_resource_nodes
+     | map('regex_replace', '^' ~ configure_ha_resource_home_node ~ '$',
+           configure_ha_resource_home_node ~ ':' ~ configure_ha_resource_home_priority)
+     | map('regex_replace', '^(?!.*:)(.*)$', '\1:1')
+     | list }}

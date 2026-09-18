@@ -1,0 +1,85 @@
+---
+- name: Read the deployed Home Assistant container
+  ansible.builtin.command:
+    argv: [docker, inspect, homeassistant]
+  register: deploy_homeassistant_inspect
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Determine the version currently running
+  ansible.builtin.set_fact:
+    deploy_homeassistant_running_version: >-
+      {{ (deploy_homeassistant_inspect.stdout | from_json | first).Config.Image.split(':') | last
+         if deploy_homeassistant_inspect.rc == 0 else '' }}
+
+- name: Refuse to move Home Assistant backwards
+  ansible.builtin.assert:
+    that:
+      - deploy_homeassistant_version is version(deploy_homeassistant_running_version, '>=')
+    fail_msg: >-
+      {{ deploy_homeassistant_running_version }} is running and
+      {{ deploy_homeassistant_version }} was asked for. Home Assistant's config
+      and database migrations are one-way, so this would not roll anything back.
+      Restore the pre-update snapshot instead, or set
+      deploy_homeassistant_allow_downgrade to override.
+    quiet: true
+  when:
+    - not deploy_homeassistant_allow_downgrade | bool
+    # Skipped on a first deploy, and on a tag that is not a version
+    # number at all (someone pointed the pin at :stable or :beta).
+    - deploy_homeassistant_running_version is match('^[0-9]{4}\\.[0-9]+')
+
+- name: Ensure the Home Assistant configuration directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_homeassistant_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Prepare the files the UI writes to
+  when: deploy_homeassistant_manage_config | bool
+  block:
+    # The managed configuration.yaml includes these three. They are
+    # owned by the UI's automation, script and scene editors, so create
+    # them empty once and never touch them again - without them Home
+    # Assistant refuses to start on a config it cannot resolve.
+    - name: Ensure the UI-owned include files exist
+      ansible.builtin.copy:
+        content: "[]\n"
+        dest: "{{ deploy_homeassistant_config_dir }}/{{ item }}"
+        owner: root
+        group: root
+        mode: "0640"
+        force: false
+      loop:
+        - automations.yaml
+        - scripts.yaml
+        - scenes.yaml
+
+    - name: Ensure the themes directory exists
+      ansible.builtin.file:
+        path: "{{ deploy_homeassistant_config_dir }}/themes"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+- name: Resolve this role's template directory
+  ansible.builtin.set_fact:
+    deploy_homeassistant_templates: "{{ role_path }}/templates"
+
+- name: Deploy the Home Assistant stack
+  ansible.builtin.include_role:
+    name: deploy_compose_stack
+  vars:
+    deploy_compose_stack_name: "{{ deploy_homeassistant_stack_name }}"
+    deploy_compose_stack_template: "{{ deploy_homeassistant_templates }}/compose.yml.j2"
+    deploy_compose_stack_wait_timeout: "{{ deploy_homeassistant_wait_timeout }}"
+    deploy_compose_stack_env:
+      TZ: "{{ deploy_homeassistant_timezone }}"
+    deploy_compose_stack_files: >-
+      {{ [{'src': deploy_homeassistant_templates ~ '/configuration.yaml.j2',
+            'dest': deploy_homeassistant_config_dir ~ '/configuration.yaml'}]
+         if deploy_homeassistant_manage_config | bool else [] }}

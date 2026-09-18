@@ -1,0 +1,242 @@
+---
+- name: Assert the tap state is valid
+  ansible.builtin.assert:
+    that: deploy_airable_proxy_state in ['present', 'absent']
+    fail_msg: >-
+      deploy_airable_proxy_state must be present or absent, got
+      {{ deploy_airable_proxy_state }}.
+    quiet: true
+
+- name: Assert an upstream address is configured
+  ansible.builtin.assert:
+    that:
+      - deploy_airable_proxy_upstream | default('') | length > 0
+      - deploy_airable_proxy_upstream is match('^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$')
+    fail_msg: >-
+      deploy_airable_proxy_upstream must be the real Airable host's IPv4
+      address. A hostname resolves through the rewrite that points at this
+      container, which would make the tap relay to itself.
+    quiet: true
+
+# The same loop, caught from the other side: if the pinned upstream is one
+# of this host's own addresses, every catalogue request would circle here
+# until something ran out.
+- name: Assert the upstream is not this host
+  ansible.builtin.assert:
+    that: deploy_airable_proxy_upstream not in ansible_facts['all_ipv4_addresses']
+    fail_msg: >-
+      deploy_airable_proxy_upstream ({{ deploy_airable_proxy_upstream }}) is an
+      address of {{ inventory_hostname }}. The tap would relay to itself.
+    quiet: true
+
+- name: Assert catalogue rewrites are only enabled together with the probe
+  ansible.builtin.assert:
+    that: deploy_airable_proxy_probe | bool
+    fail_msg: >-
+      deploy_airable_proxy_rewrites requires deploy_airable_proxy_probe.
+      A response can only be replaced once TLS is terminated.
+    quiet: true
+  when: deploy_airable_proxy_rewrites | length > 0
+
+# Borrowing an id takes that station away from the device, so make the
+# trade visible in the run rather than leaving it to be rediscovered.
+- name: Report which catalogue entries are being replaced
+  ansible.builtin.debug:
+    msg: >-
+      Rewriting {{ deploy_airable_proxy_rewrites | length }} catalogue
+      entr{{ 'y' if deploy_airable_proxy_rewrites | length == 1 else 'ies' }}:
+      {{ deploy_airable_proxy_rewrites.keys() | list | join(', ') }}.
+      Those stations will no longer play their real content on this radio.
+  when: deploy_airable_proxy_rewrites | length > 0
+
+- name: Resolve this role's template directory
+  ansible.builtin.set_fact:
+    deploy_airable_proxy_templates: "{{ role_path }}/templates"
+    deploy_airable_proxy_files: "{{ role_path }}/files"
+
+# Captured traffic can carry whatever identifier the device sends with its
+# catalogue requests, so the logs are not world-readable.
+- name: Ensure the capture log directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_airable_proxy_log_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  when: deploy_airable_proxy_state == 'present'
+
+- name: Ensure the artwork directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_airable_proxy_artwork_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - deploy_airable_proxy_state == 'present'
+    - deploy_airable_proxy_live_assets | length > 0
+
+- name: Ensure the probe certificate directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_airable_proxy_cert_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  when:
+    - deploy_airable_proxy_state == 'present'
+    - deploy_airable_proxy_probe | bool
+
+# Generated once and reused, so the radio sees the same certificate on
+# every attempt. A fresh one each run would make a caching firmware look
+# like an inconsistent one.
+- name: Ensure the self-signed probe certificate exists
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -x509
+      - -newkey
+      - rsa:2048
+      - -nodes
+      - -days
+      - "{{ deploy_airable_proxy_cert_days }}"
+      - -keyout
+      - "{{ deploy_airable_proxy_key }}"
+      - -out
+      - "{{ deploy_airable_proxy_cert }}"
+      - -subj
+      - "/CN={{ deploy_airable_proxy_upstream_host }}"
+      - -addext
+      - "subjectAltName={{ deploy_airable_proxy_rewrite_names | map('regex_replace', '^', 'DNS:') | join(',') }}"
+    creates: "{{ deploy_airable_proxy_cert }}"
+  when:
+    - deploy_airable_proxy_state == 'present'
+    - deploy_airable_proxy_probe | bool
+
+- name: Ensure the probe private key is not world readable
+  ansible.builtin.file:
+    path: "{{ deploy_airable_proxy_key }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when:
+    - deploy_airable_proxy_state == 'present'
+    - deploy_airable_proxy_probe | bool
+
+# Flattened to the stack root rather than a subdirectory, so each file can
+# be bind-mounted individually like everything else in the compose file.
+- name: Build the artwork copy list
+  ansible.builtin.set_fact:
+    deploy_airable_proxy_asset_copies: "{{
+      deploy_airable_proxy_asset_copies | default([])
+      + [{'src': (item.value if item.value.startswith('/')
+                  else lookup('env', 'PWD') ~ '/' ~ item.value),
+          'dest': 'asset_' ~ (item.value | basename),
+          'mode': '0644'}] }}"
+  loop: "{{ deploy_airable_proxy_assets | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: deploy_airable_proxy_assets | length > 0
+
+- name: Assert the artwork exists on this machine
+  ansible.builtin.assert:
+    that: item.src is file
+    fail_msg: >-
+      Artwork {{ item.src }} is not a file on this machine. It is read from
+      the Ansible controller, not from the target.
+    quiet: true
+  loop: "{{ deploy_airable_proxy_asset_copies | default([]) }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  when: deploy_airable_proxy_assets | length > 0
+
+- name: Deploy the Airable tap stack
+  ansible.builtin.include_role:
+    name: deploy_compose_stack
+  vars:
+    deploy_compose_stack_name: "{{ deploy_airable_proxy_stack_name }}"
+    deploy_compose_stack_template: "{{ deploy_airable_proxy_templates }}/compose.yml.j2"
+    deploy_compose_stack_state: "{{ deploy_airable_proxy_state }}"
+    deploy_compose_stack_files: "{{ deploy_airable_proxy_rendered
+      | rejectattr('when', 'equalto', false) | list }}"
+    deploy_airable_proxy_rendered:
+      - src: "{{ deploy_airable_proxy_templates }}/assets.json.j2"
+        dest: assets.json
+        mode: "0644"
+        when: "{{ (deploy_airable_proxy_assets | length
+                   + deploy_airable_proxy_live_assets | length) > 0 }}"
+      - src: "{{ deploy_airable_proxy_templates }}/rewrites.json.j2"
+        dest: rewrites.json
+        mode: "0644"
+        when: "{{ deploy_airable_proxy_rewrites | length > 0 }}"
+    deploy_compose_stack_copies: "{{ (deploy_airable_proxy_copies
+      + deploy_airable_proxy_asset_copies | default([]))
+      | rejectattr('src', 'equalto', '') | list }}"
+    deploy_airable_proxy_copies:
+      - src: "{{ deploy_airable_proxy_files }}/airable_tap.py"
+        dest: airable_tap.py
+        mode: "0644"
+        validate: 'python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" %s'
+      - src: "{{ deploy_airable_proxy_files }}/summarize.py"
+        dest: summarize.py
+        mode: "0755"
+        validate: 'python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" %s'
+
+- name: Read the tap's own view of itself
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ deploy_airable_proxy_status_port }}/"
+    return_content: true
+  register: deploy_airable_proxy_status
+  when:
+    - deploy_airable_proxy_state == 'present'
+    - deploy_airable_proxy_status_port | int > 0
+
+- name: Report the deployed state
+  ansible.builtin.debug:
+    msg: "{{ deploy_airable_proxy_summary.splitlines() }}"
+  vars:
+    deploy_airable_proxy_summary: |
+      Airable tap on {{ ansible_host }}:
+      {{ deploy_airable_proxy_ports | join(', ') }} -> {{ deploy_airable_proxy_upstream }}
+      {% if deploy_airable_proxy_probe | bool %}
+      TLS terminated with {{ deploy_airable_proxy_cert }}
+      {% else %}
+      Passthrough only - nothing is read or replaced.
+      {% endif %}
+      {% if deploy_airable_proxy_rewrites | length > 0 %}
+
+      Replaced catalogue entries:
+      {% for match in deploy_airable_proxy_rewrites %}
+        {{ match }}
+      {% endfor %}
+      {% endif %}
+      {% if deploy_airable_proxy_assets | length > 0 %}
+
+      Served artwork (re-read per request, so it can be refreshed
+      underneath the tap without a redeploy):
+      {% for match, src in deploy_airable_proxy_assets.items() %}
+        {{ match }} <- {{ src | basename }}
+      {% endfor %}
+      {% endif %}
+
+      This only works while DNS sends the radio here. In AdGuard, rewrites
+      for {{ deploy_airable_proxy_rewrite_names | join(' and ') }} must
+      point at {{ ansible_host }}.
+
+      Live view:
+        ssh {{ ansible_host }} docker logs -f {{ deploy_airable_proxy_stack_name }}
+      Traffic summary:
+        docker exec {{ deploy_airable_proxy_stack_name }} \
+          python3 /app/summarize.py /var/log/airable/airable.jsonl
+  when: deploy_airable_proxy_state == 'present'
+
+- name: Report the teardown
+  ansible.builtin.debug:
+    msg: >-
+      Tap removed from {{ inventory_hostname }}. Captured logs are left in
+      {{ deploy_airable_proxy_log_dir }}. If the DNS rewrites for
+      {{ deploy_airable_proxy_rewrite_names | join(', ') }} are still in
+      AdGuard, the radio's catalogue is pointing at a host that no longer
+      answers - remove them now.
+  when: deploy_airable_proxy_state == 'absent'

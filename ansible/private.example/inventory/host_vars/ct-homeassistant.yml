@@ -1,0 +1,42 @@
+---
+# Everything setup_homeassistant.yml needs from the inventory. Copy this
+# into private/inventory/host_vars/ and add the host to the apps group in
+# hosts.yml with its ansible_host.
+
+setup_lxc_vmid: 171
+setup_lxc_node: POD042
+setup_lxc_template_name: debian-13-standard_13.6-1_amd64.tar.zst
+
+setup_lxc_ip: "{{ ansible_host }}/24"
+setup_lxc_gateway: 10.10.40.1
+setup_lxc_vlan_tag: 40
+
+setup_lxc_cores: 2
+setup_lxc_memory: 4096
+setup_lxc_swap: 512
+setup_lxc_disk_size: 32
+
+# nesting for Docker; keyctl because the recorder's SQLite and several
+# integrations use keyrings that an unprivileged container otherwise
+# cannot open.
+setup_lxc_features:
+  nesting: 1
+  keyctl: 1
+
+setup_lxc_root_password: "{{ vault_proxmox_root_password }}"
+setup_lxc_pubkeys: "{{ vault_nanonode_ssh_pubkey }}"
+
+setup_lxc_description: "Home Assistant - Docker\n"
+
+install_docker_users:
+  - ansible
+
+# --- Home Assistant ---
+# deploy_homeassistant_manage_config: true
+# deploy_homeassistant_trusted_proxies:
+#   - 10.10.40.0/24
+#
+# Serial dongles, once the guest itself has them (a dev0 entry in the
+# container config; the LXC options are not managed by setup_lxc):
+# deploy_homeassistant_devices:
+#   - /dev/serial/by-id/usb-...-if00:/dev/ttyACM0

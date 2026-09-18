@@ -1,0 +1,93 @@
+---
+- name: Assert Spotify API credentials are available
+  ansible.builtin.assert:
+    that:
+      - vault_spotify_clientid | default('') | length > 0
+      - vault_spotify_clientsecret | default('') | length > 0
+      - vault_spotify_refreshtoken | default('') | length > 0
+    fail_msg: >-
+      deploy_playlist_aggregator requires vault_spotify_clientid,
+      vault_spotify_clientsecret and vault_spotify_refreshtoken.
+    quiet: true
+
+- name: Assert at least one playlist is configured
+  ansible.builtin.assert:
+    that: deploy_playlist_aggregator_playlists | length > 0
+    fail_msg: >-
+      deploy_playlist_aggregator_playlists is empty - set it in host_vars.
+    quiet: true
+
+- name: Ensure the aggregator directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_playlist_aggregator_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Ensure the data directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_playlist_aggregator_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Ensure the aggregator script is in place
+  ansible.builtin.copy:
+    src: aggregate.py
+    dest: "{{ deploy_playlist_aggregator_dir }}/aggregate.py"
+    owner: root
+    group: root
+    mode: "0755"
+    validate: 'python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" %s'
+
+- name: Ensure the database schema is in place
+  ansible.builtin.copy:
+    src: schema.sql
+    dest: "{{ deploy_playlist_aggregator_dir }}/schema.sql"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Ensure the aggregator environment file is in place
+  ansible.builtin.copy:
+    content: |
+      SPOTIFY_CLIENT_ID={{ vault_spotify_clientid }}
+      SPOTIFY_CLIENT_SECRET={{ vault_spotify_clientsecret }}
+      SPOTIFY_REFRESH_TOKEN={{ vault_spotify_refreshtoken }}
+      AGGREGATOR_DB=/data/{{ deploy_playlist_aggregator_db | basename }}
+      AGGREGATOR_SCHEMA=/app/schema.sql
+      AGGREGATOR_PLAYLISTS={{ deploy_playlist_aggregator_playlists | to_json }}
+    dest: "{{ deploy_playlist_aggregator_dir }}/aggregator.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Ensure the aggregator service unit is in place
+  ansible.builtin.template:
+    src: aggregator.service.j2
+    dest: "/etc/systemd/system/{{ deploy_playlist_aggregator_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: deploy_playlist_aggregator | Reload systemd
+
+- name: Ensure the aggregator timer unit is in place
+  ansible.builtin.template:
+    src: aggregator.timer.j2
+    dest: "/etc/systemd/system/{{ deploy_playlist_aggregator_name }}.timer"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: deploy_playlist_aggregator | Reload systemd
+
+- name: Flush handlers so the timer can be enabled against current units
+  ansible.builtin.meta: flush_handlers
+
+- name: Ensure the aggregator timer is enabled
+  ansible.builtin.systemd_service:
+    name: "{{ deploy_playlist_aggregator_name }}.timer"
+    enabled: true
+    state: started

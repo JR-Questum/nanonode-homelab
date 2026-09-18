@@ -1,0 +1,62 @@
+---
+deploy_radio_scheduler_stack_name: scheduler
+deploy_radio_scheduler_root: /srv/radio
+deploy_radio_scheduler_voice_dir: "{{ deploy_radio_scheduler_root }}/voice"
+deploy_radio_scheduler_models_dir: "{{ deploy_radio_scheduler_root }}/models"
+
+# Host loopback: go-librespot, Liquidsoap telnet, Icecast and Ollama all
+# bind or publish there.
+deploy_radio_scheduler_librespot_api: "http://127.0.0.1:3678"
+deploy_radio_scheduler_telnet_host: "127.0.0.1"
+deploy_radio_scheduler_telnet_port: 1234
+deploy_radio_scheduler_icecast_status: "http://127.0.0.1:8000/status-json.xsl"
+deploy_radio_scheduler_mount: /nanonode
+
+# The voice directory as LIQUIDSOAP sees it. Telnet commands must use
+# this path, not the scheduler's own.
+deploy_radio_scheduler_voice_mount: /media/voice
+
+# Piper TTS. Development moved to OHF-Voice/piper1-gpl; voice models
+# still live in the rhasspy/piper-voices HuggingFace repo.
+deploy_radio_scheduler_piper_voice: nl_BE-nathalie-medium
+deploy_radio_scheduler_voices_base: "https://huggingface.co/rhasspy/piper-voices/resolve/main"
+deploy_radio_scheduler_voice_path: "nl/nl_BE/nathalie/medium"
+
+# Leading silence prepended to speech. Not needed with a 0.4s duck fade,
+# but available if a dense track ever buries a first word.
+deploy_radio_scheduler_tts_lead_in: 0
+deploy_radio_scheduler_tts_threads: 2
+
+# THROWAWAY - set true in host_vars to exercise TTS hourly at :30.
+deploy_radio_scheduler_tts_test: false
+
+# --- Ollama ---
+deploy_radio_scheduler_ollama_api: "http://127.0.0.1:11434"
+deploy_radio_scheduler_ollama_model: gemma2:2b
+
+# Passed per-request: llama.cpp reads the HOST's core count rather than
+# the cgroup limit and oversubscribes badly (0.5 vs 10.6 tok/s).
+deploy_radio_scheduler_ollama_num_thread: 4
+deploy_radio_scheduler_ollama_timeout: 120
+
+# --- News ---
+deploy_radio_scheduler_news_enabled: true
+deploy_radio_scheduler_news_feed: "https://podcasts.vrt.be/v1/program-6848a863-f561-429b-8f9b-19aaa4f7ef4c"
+deploy_radio_scheduler_news_fetch_minute: 58
+deploy_radio_scheduler_news_play_minute: 0
+deploy_radio_scheduler_news_max_age_minutes: 90
+
+# --- Weather ---
+deploy_radio_scheduler_weather_enabled: true
+deploy_radio_scheduler_weather_minutes: [30]
+deploy_radio_scheduler_weather_latitude: 50.88
+deploy_radio_scheduler_weather_longitude: 4.70
+deploy_radio_scheduler_weather_timezone: Europe/Brussels
+deploy_radio_scheduler_weather_place: Leuven
+
+# DJ links: the AutoDJ writes a dj_queue row a full track ahead; this
+# picks it up, generates a line and synthesizes it. The AutoDJ pushes
+# the clip when the track starts.
+deploy_radio_scheduler_dj_enabled: true
+deploy_radio_scheduler_db: "{{ deploy_radio_scheduler_root }}/data/nanonode.db"
+deploy_radio_scheduler_dj_poll_seconds: 15

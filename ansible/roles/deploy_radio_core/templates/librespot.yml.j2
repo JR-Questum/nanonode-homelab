@@ -1,0 +1,39 @@
+# Managed by Ansible - deploy_radio_core. Do not edit on the host.
+# state.json in this directory holds Spotify credentials after pairing
+# and is deliberately NOT managed by Ansible.
+
+device_name: {{ deploy_radio_core_spotify_device_name }}
+device_type: {{ deploy_radio_core_spotify_device_type }}
+
+zeroconf_enabled: true
+zeroconf_backend: builtin
+zeroconf_interfaces_to_advertise:
+  - {{ deploy_radio_core_spotify_mdns_interface }}
+
+credentials:
+  type: zeroconf
+  zeroconf:
+    persist_credentials: true
+
+audio_backend: pipe
+audio_output_pipe: {{ deploy_radio_core_pipe_path }}
+audio_output_pipe_format: s16le
+
+bitrate: {{ deploy_radio_core_spotify_bitrate }}
+normalisation_disabled: {{ (not deploy_radio_core_spotify_normalisation) | lower }}
+normalisation_pregain: {{ deploy_radio_core_spotify_pregain }}
+
+# No mixer, no external volume: samples are scaled by Spotify's volume,
+# so keep it at maximum or Liquidsoap sees attenuated audio.
+initial_volume: 100
+ignore_last_volume: true
+external_volume: false
+
+disable_autoplay: {{ deploy_radio_core_spotify_disable_autoplay | lower }}
+
+server:
+  enabled: true
+  address: {{ deploy_radio_core_spotify_api_address }}
+  port: {{ deploy_radio_core_spotify_api_port }}
+
+log_level: info

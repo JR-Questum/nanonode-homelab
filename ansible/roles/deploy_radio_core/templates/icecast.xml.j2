@@ -1,0 +1,51 @@
+<icecast>
+    <location>Homelab</location>
+    <admin>admin@localhost</admin>
+
+    <limits>
+        <clients>{{ deploy_radio_core_max_listeners }}</clients>
+        <sources>4</sources>
+        <queue-size>524288</queue-size>
+        <client-timeout>30</client-timeout>
+        <header-timeout>15</header-timeout>
+        <source-timeout>10</source-timeout>
+        <burst-on-connect>1</burst-on-connect>
+        <burst-size>65535</burst-size>
+    </limits>
+
+    <authentication>
+        <source-password>{{ vault_icecast_source_password }}</source-password>
+        <relay-password>{{ vault_icecast_relay_password }}</relay-password>
+        <admin-user>admin</admin-user>
+        <admin-password>{{ vault_icecast_admin_password }}</admin-password>
+    </authentication>
+
+    <hostname>{{ ansible_host }}</hostname>
+
+    <listen-socket>
+        <port>8000</port>
+    </listen-socket>
+
+    <mount type="normal">
+        <mount-name>{{ deploy_radio_core_mount }}</mount-name>
+        <public>0</public>
+    </mount>
+
+    <paths>
+        <basedir>/usr/share/icecast</basedir>
+        <logdir>/var/log/icecast</logdir>
+        <webroot>/usr/share/icecast/web</webroot>
+        <adminroot>/usr/share/icecast/admin</adminroot>
+        <alias source="/" destination="/status.xsl"/>
+    </paths>
+
+    <logging>
+        <accesslog>-</accesslog>
+        <errorlog>-</errorlog>
+        <loglevel>3</loglevel>
+    </logging>
+
+    <security>
+        <chroot>0</chroot>
+    </security>
+</icecast>

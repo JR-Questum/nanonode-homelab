@@ -1,0 +1,14 @@
+---
+# Step 1 of the Airable investigation: watch what the radio asks Airable
+# about a station Airable has never heard of.
+#
+# Runs on ct-radio rather than a new container on the radio's VLAN. The
+# device already reaches this host for the stream itself, so the path is
+# proven, and co-locating adds no failure domain: if ct-radio is down the
+# radio has lost its music anyway.
+- name: Deploy the Airable catalogue tap
+  hosts: "{{ airable_proxy_hosts | default('ct-radio') }}"
+
+  roles:
+    - role: deploy_airable_proxy
+    - role: deploy_airable_artwork

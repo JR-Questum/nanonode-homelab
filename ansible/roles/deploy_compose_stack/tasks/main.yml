@@ -1,0 +1,113 @@
+---
+- name: Assert required stack variables are defined
+  ansible.builtin.assert:
+    that:
+      - deploy_compose_stack_name is not none
+      - deploy_compose_stack_template is not none
+    fail_msg: >-
+      deploy_compose_stack requires deploy_compose_stack_name and
+      deploy_compose_stack_template.
+    quiet: true
+
+- name: Ensure the stack directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_compose_stack_dir }}"
+    state: directory
+    owner: "{{ deploy_compose_stack_owner }}"
+    group: "{{ deploy_compose_stack_group }}"
+    mode: "{{ deploy_compose_stack_dir_mode }}"
+
+- name: Ensure the environment file is in place
+  ansible.builtin.copy:
+    content: |
+      {% for key, value in deploy_compose_stack_env | dictsort %}
+      {{ key }}={{ value }}
+      {% endfor %}
+    dest: "{{ deploy_compose_stack_dir }}/.env"
+    owner: "{{ deploy_compose_stack_owner }}"
+    group: "{{ deploy_compose_stack_group }}"
+    mode: "0600"
+  no_log: true
+  register: deploy_compose_stack_env_result
+  when: deploy_compose_stack_env | length > 0
+
+- name: Ensure supporting configuration files are in place
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: >-
+      {{ item.dest if item.dest.startswith('/')
+         else deploy_compose_stack_dir ~ '/' ~ item.dest }}
+    owner: "{{ item.owner | default(deploy_compose_stack_owner) }}"
+    group: "{{ item.group | default(deploy_compose_stack_group) }}"
+    mode: "{{ item.mode | default('0640') }}"
+  loop: "{{ deploy_compose_stack_files }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  register: deploy_compose_stack_files_result
+
+- name: Ensure the compose file is in place
+  ansible.builtin.template:
+    src: "{{ deploy_compose_stack_template }}"
+    dest: "{{ deploy_compose_stack_dir }}/compose.yml"
+    owner: "{{ deploy_compose_stack_owner }}"
+    group: "{{ deploy_compose_stack_group }}"
+    mode: "0640"
+    validate: "docker compose -f %s config --quiet"
+  register: deploy_compose_stack_compose_result
+
+- name: Determine whether configuration changed
+  ansible.builtin.set_fact:
+    deploy_compose_stack_config_changed: >-
+      {{ deploy_compose_stack_compose_result.changed
+         or (deploy_compose_stack_env_result.changed | default(false))
+         or (deploy_compose_stack_files_result.results | default([])
+             | selectattr('changed') | list | length > 0) }}
+
+- name: Ensure supporting files are copied verbatim
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: >-
+      {{ item.dest if item.dest.startswith('/')
+         else deploy_compose_stack_dir ~ '/' ~ item.dest }}
+    owner: "{{ item.owner | default(deploy_compose_stack_owner) }}"
+    group: "{{ item.group | default(deploy_compose_stack_group) }}"
+    mode: "{{ item.mode | default('0640') }}"
+    validate: "{{ item.validate | default(omit) }}"
+  loop: "{{ deploy_compose_stack_copies }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  register: deploy_compose_stack_copies_result
+
+- name: Determine whether configuration changed
+  ansible.builtin.set_fact:
+    deploy_compose_stack_config_changed: >-
+      {{ deploy_compose_stack_compose_result.changed
+         or (deploy_compose_stack_env_result.changed | default(false))
+         or (deploy_compose_stack_files_result.results | default([])
+             | selectattr('changed') | list | length > 0)
+         or (deploy_compose_stack_copies_result.results | default([])
+             | selectattr('changed') | list | length > 0) }}
+
+- name: Rebuild stack images when sources changed
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ deploy_compose_stack_dir }}/compose.yml"
+      - build
+  changed_when: true
+  when:
+    - deploy_compose_stack_build | bool
+    - deploy_compose_stack_config_changed | bool
+
+- name: Ensure the stack is in the desired state
+  community.docker.docker_compose_v2:
+    project_src: "{{ deploy_compose_stack_dir }}"
+    files: [compose.yml]
+    state: "{{ deploy_compose_stack_state }}"
+    pull: "{{ deploy_compose_stack_pull }}"
+    remove_orphans: "{{ deploy_compose_stack_remove_orphans }}"
+    recreate: "{{ 'always' if deploy_compose_stack_config_changed else 'auto' }}"
+    wait: "{{ deploy_compose_stack_wait }}"
+    wait_timeout: "{{ deploy_compose_stack_wait_timeout }}"

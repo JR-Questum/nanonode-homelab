@@ -1,0 +1,27 @@
+---
+- name: Assert snapshot variables are defined
+  ansible.builtin.assert:
+    that:
+      - snapshot_lxc_vmid is not none
+      - snapshot_lxc_node is not none
+      - snapshot_lxc_node in hostvars
+    fail_msg: >-
+      snapshot_lxc needs vmid and a node that exists in the inventory.
+      Containers get both from their setup_lxc host_vars.
+    quiet: true
+
+- name: Snapshot {{ inventory_hostname }} as {{ snapshot_lxc_name }}
+  community.proxmox.proxmox_snap:
+    api_host: "{{ hostvars[snapshot_lxc_node].ansible_host }}"
+    api_user: "{{ vault_proxmox_root_user }}"
+    api_password: "{{ vault_proxmox_root_password }}"
+    validate_certs: true
+    vmid: "{{ snapshot_lxc_vmid }}"
+    snapname: "{{ snapshot_lxc_name }}"
+    description: "{{ snapshot_lxc_description }}"
+    retention: "{{ snapshot_lxc_retention }}"
+    vmstate: "{{ snapshot_lxc_vmstate }}"
+    timeout: "{{ snapshot_lxc_timeout }}"
+    state: present
+  become: false
+  delegate_to: "{{ snapshot_lxc_node }}"

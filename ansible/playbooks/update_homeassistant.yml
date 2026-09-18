@@ -1,0 +1,92 @@
+---
+# Bring the Home Assistant guest up to date: the Docker engine underneath
+# it, and Home Assistant itself.
+#
+# The Home Assistant version is resolved at run time from the project's
+# own release channel, so what this playbook installs depends on the day
+# it runs rather than on what is in git. To move to a fixed version
+# instead, bump deploy_homeassistant_version in the role and run
+# setup_homeassistant.yml.
+#
+# The OS packages on this guest are deliberately not touched here - that
+# is update_system's job, and mixing a dist-upgrade into an application
+# update makes a failure harder to attribute.
+
+- name: Update Home Assistant
+  hosts: "{{ homeassistant_hosts | default('ct-homeassistant') }}"
+
+  vars:
+    update_homeassistant_channel_url: https://version.home-assistant.io/stable.json
+
+    # auto   - snapshot only when Home Assistant will actually move
+    # always - snapshot on every run, including no-ops
+    # never  - no snapshot
+    #
+    # auto covers the risk the snapshot exists for: a feature release
+    # migrating the config and the recorder database one way. A Docker
+    # engine upgrade on its own does not touch /srv/homeassistant, so it
+    # does not trigger one.
+    update_homeassistant_snapshot: auto
+
+  pre_tasks:
+    - name: Resolve the current stable Home Assistant release
+      ansible.builtin.uri:
+        url: "{{ update_homeassistant_channel_url }}"
+        return_content: true
+      register: update_homeassistant_channel
+      changed_when: false
+      check_mode: false
+
+    - name: Read the deployed Home Assistant container
+      ansible.builtin.command:
+        argv: [docker, inspect, homeassistant]
+      register: update_homeassistant_inspect
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Work out what this run would change
+      ansible.builtin.set_fact:
+        update_homeassistant_target: >-
+          {{ update_homeassistant_channel.json.homeassistant.default }}
+        update_homeassistant_running: >-
+          {{ (update_homeassistant_inspect.stdout | from_json | first).Config.Image.split(':') | last
+             if update_homeassistant_inspect.rc == 0 else '' }}
+
+    - name: Report the version change
+      ansible.builtin.debug:
+        msg: >-
+          Home Assistant
+          {{ update_homeassistant_running | default('not deployed', true) }}
+          -> {{ update_homeassistant_target }}
+          {{ '(already current)'
+             if update_homeassistant_running == update_homeassistant_target
+             else '' }}
+
+    - name: Snapshot the container before anything changes
+      ansible.builtin.include_role:
+        name: snapshot_lxc
+      vars:
+        snapshot_lxc_name: "preha-{{ ansible_facts['date_time'].iso8601_basic_short | lower }}"
+        snapshot_lxc_description: >-
+          Before Home Assistant
+          {{ update_homeassistant_running | default('none', true) }}
+          -> {{ update_homeassistant_target }}
+      when: >-
+        update_homeassistant_snapshot == 'always'
+        or (update_homeassistant_snapshot == 'auto'
+            and update_homeassistant_running != update_homeassistant_target)
+
+  roles:
+    # The same package list, repository and daemon configuration the
+    # deploy lays down. state: latest is the only difference.
+    - role: install_docker
+      vars:
+        install_docker_package_state: latest
+
+    # Rewrites compose.yml with the resolved tag, which is what makes
+    # deploy_compose_stack pull and recreate. The role refuses to move
+    # Home Assistant to an older version than the one running.
+    - role: deploy_homeassistant
+      vars:
+        deploy_homeassistant_version: "{{ update_homeassistant_target }}"

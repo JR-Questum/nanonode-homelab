@@ -1,0 +1,3 @@
+update_system_needrestart_ignore:
+  - dbus.service
+  - systemd-logind.service

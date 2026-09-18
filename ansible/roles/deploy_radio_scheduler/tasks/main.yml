@@ -1,0 +1,80 @@
+---
+- name: Ensure the voice clip directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_radio_scheduler_voice_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the model directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_radio_scheduler_models_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the Piper voice model is present
+  ansible.builtin.get_url:
+    url: >-
+      {{ deploy_radio_scheduler_voices_base }}/{{ deploy_radio_scheduler_voice_path }}/{{ item }}
+    dest: "{{ deploy_radio_scheduler_models_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  loop:
+    - "{{ deploy_radio_scheduler_piper_voice }}.onnx"
+    - "{{ deploy_radio_scheduler_piper_voice }}.onnx.json"
+
+- name: Resolve this role's file directories
+  ansible.builtin.set_fact:
+    deploy_radio_scheduler_files: "{{ role_path }}/files"
+    deploy_radio_scheduler_templates: "{{ role_path }}/templates"
+
+- name: Deploy the scheduler stack
+  ansible.builtin.include_role:
+    name: deploy_compose_stack
+  vars:
+    deploy_compose_stack_name: "{{ deploy_radio_scheduler_stack_name }}"
+    deploy_compose_stack_template: "{{ deploy_radio_scheduler_templates }}/compose.yml.j2"
+    deploy_compose_stack_build: true
+    deploy_compose_stack_env:
+      SCHED_LIBRESPOT_API: "{{ deploy_radio_scheduler_librespot_api }}"
+      SCHED_TELNET_HOST: "{{ deploy_radio_scheduler_telnet_host }}"
+      SCHED_TELNET_PORT: "{{ deploy_radio_scheduler_telnet_port }}"
+      SCHED_ICECAST_STATUS: "{{ deploy_radio_scheduler_icecast_status }}"
+      SCHED_MOUNT: "{{ deploy_radio_scheduler_mount }}"
+      SCHED_VOICE_DIR: /voice
+      SCHED_VOICE_MOUNT: "{{ deploy_radio_scheduler_voice_mount }}"
+      SCHED_PIPER_MODEL: "/models/{{ deploy_radio_scheduler_piper_voice }}.onnx"
+      SCHED_TTS_LEAD_IN: "{{ deploy_radio_scheduler_tts_lead_in }}"
+      SCHED_TTS_THREADS: "{{ deploy_radio_scheduler_tts_threads }}"
+      SCHED_TTS_TEST: "{{ 1 if deploy_radio_scheduler_tts_test else 0 }}"
+      SCHED_OLLAMA_API: "{{ deploy_radio_scheduler_ollama_api }}"
+      SCHED_OLLAMA_MODEL: "{{ deploy_radio_scheduler_ollama_model }}"
+      SCHED_OLLAMA_NUM_THREAD: "{{ deploy_radio_scheduler_ollama_num_thread }}"
+      SCHED_OLLAMA_TIMEOUT: "{{ deploy_radio_scheduler_ollama_timeout }}"
+      SCHED_NEWS_FEED: "{{ deploy_radio_scheduler_news_feed }}"
+      SCHED_NEWS_ENABLED: "{{ 1 if deploy_radio_scheduler_news_enabled else 0 }}"
+      SCHED_NEWS_FETCH_MINUTE: "{{ deploy_radio_scheduler_news_fetch_minute }}"
+      SCHED_NEWS_PLAY_MINUTE: "{{ deploy_radio_scheduler_news_play_minute }}"
+      SCHED_NEWS_MAX_AGE_MINUTES: "{{ deploy_radio_scheduler_news_max_age_minutes }}"
+      SCHED_WEATHER_ENABLED: "{{ 1 if deploy_radio_scheduler_weather_enabled else 0 }}"
+      SCHED_WEATHER_MINUTES: "{{ deploy_radio_scheduler_weather_minutes | join(',') }}"
+      SCHED_WEATHER_LAT: "{{ deploy_radio_scheduler_weather_latitude }}"
+      SCHED_WEATHER_LON: "{{ deploy_radio_scheduler_weather_longitude }}"
+      SCHED_WEATHER_TZ: "{{ deploy_radio_scheduler_weather_timezone }}"
+      SCHED_WEATHER_PLACE: "{{ deploy_radio_scheduler_weather_place }}"
+      SCHED_DJ_ENABLED: "{{ 1 if deploy_radio_scheduler_dj_enabled else 0 }}"
+      SCHED_DB: "/data/{{ deploy_radio_scheduler_db | basename }}"
+      SCHED_DJ_POLL_SECONDS: "{{ deploy_radio_scheduler_dj_poll_seconds }}"
+    deploy_compose_stack_copies:
+      - src: "{{ deploy_radio_scheduler_files }}/Dockerfile"
+        dest: Dockerfile
+        mode: "0644"
+      - src: "{{ deploy_radio_scheduler_files }}/scheduler.py"
+        dest: scheduler.py
+        mode: "0644"
+        validate: 'python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" %s'

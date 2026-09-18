@@ -1,0 +1,124 @@
+# Managed by Ansible - deploy_radio_core. Do not edit on the host.
+
+settings.log.stdout.set(true)
+settings.log.file.set(false)
+settings.log.level.set({{ deploy_radio_core_log_level }})
+
+# Telnet control server: how news, weather and the AI DJ push clips into
+# the voice queue. Bound to all interfaces inside the container; compose
+# publishes it on host loopback only, since the protocol has no auth.
+settings.server.telnet.set(true)
+settings.server.telnet.bind_addr.set("0.0.0.0")
+settings.server.telnet.port.set({{ deploy_radio_core_telnet_port }})
+
+# reload_mode="watch" picks up new files without restarting the container.
+ambient = playlist(
+  id="ambient",
+  mode="randomize",
+  reload_mode="watch",
+  "/media/ambient"
+)
+
+# Spotify audio arrives as raw PCM over a named pipe.
+#
+# "cat 0<> pipe" opens the FIFO read-WRITE rather than read-only. Two
+# reasons: the reader never sees EOF when go-librespot closes its end,
+# and the pipe always has at least one reader, so go-librespot's
+# O_NONBLOCK open cannot fail with ENXIO. "sleep 1; exec" throttles the
+# restart loop and keeps the process handle pointing at cat.
+spotify = input.external.rawaudio(
+  id="spotify",
+  restart=true,
+  restart_on_error=true,
+  samplerate={{ deploy_radio_core_samplerate }},
+  channels=2,
+  "sleep 1; exec cat 0<> {{ deploy_radio_core_pipe_path }}"
+)
+
+# track_sensitive=false so the switch happens the moment Spotify has
+# audio, rather than waiting for the current ambient track to end.
+radio = fallback(
+  id="router",
+  track_sensitive=false,
+  [spotify, ambient]
+)
+
+# mksafe guarantees the output never fails: silence beats a dead mount.
+radio = mksafe(radio)
+
+# Voice queue. Push clips with the telnet command:
+#   voice.push /media/voice/<file>
+# smooth_add fades the music down to duck_level while the queue has
+# something to play, then back up. Empty queue = no effect at all.
+voice = request.queue(id="voice")
+
+# voice.queue lists only *pending* requests, so it reads empty while a
+# clip is still being decoded. Expose the source's readiness instead, so
+# the scheduler can tell "still speaking" from "finished".
+voice.register_command(
+  description="Whether the voice source is currently producing audio",
+  "playing",
+  fun (_) -> if voice.is_ready() then "true" else "false" end
+)
+
+voice = amplify({{ deploy_radio_core_voice_gain | float }}, voice)
+
+radio = smooth_add(
+  duration={{ deploy_radio_core_duck_duration | float }},
+  p={{ deploy_radio_core_duck_level | float }},
+  normal=radio,
+  special=voice
+)
+
+radio = smooth_add(
+  duration={{ deploy_radio_core_duck_duration }},
+  p={{ deploy_radio_core_duck_level }},
+  normal=radio,
+  special=voice
+)
+
+{% if deploy_radio_core_limiter_enabled %}
+# id is needed because register_command below registers under the
+# SOURCE's id, not the variable name.
+radio = limit(
+  id="master",
+  threshold={{ deploy_radio_core_limiter_threshold | float }},
+  attack={{ deploy_radio_core_limiter_attack | float }},
+  release={{ deploy_radio_core_limiter_release | float }},
+  radio
+)
+{% else %}
+radio = amplify(id="radio", 1.0, radio)
+{% endif %}
+
+# Spotify audio arrives as raw PCM, which carries no tags, so Icecast has
+# no track metadata to broadcast. The AutoDJ injects it over telnet:
+#   radio.meta <artist> - <title>
+radio.register_command(
+  description="Set the ICY metadata for the current track",
+  usage="meta <artist> - <title>",
+  "meta",
+  fun (arg) -> begin
+    parts = string.split(separator=" - ", arg)
+    artist = list.nth(default="", parts, 0)
+    title = string.concat(separator=" - ", list.tl(parts))
+    radio.insert_metadata(new_track=true, [("artist", artist), ("title", title)])
+    "Done"
+  end
+)
+
+output.icecast(
+  %mp3(bitrate={{ deploy_radio_core_bitrate }},
+       samplerate={{ deploy_radio_core_samplerate }},
+       stereo=true),
+  id="icecast_out",
+  host="icecast",
+  port=8000,
+  password=environment.get("ICECAST_SOURCE_PASSWORD"),
+  mount="{{ deploy_radio_core_mount }}",
+  name="{{ deploy_radio_core_station_name }}",
+  description="{{ deploy_radio_core_station_description }}",
+  genre="{{ deploy_radio_core_station_genre }}",
+  url="{{ deploy_radio_core_station_url }}",
+  radio
+)

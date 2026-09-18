@@ -1,0 +1,13 @@
+---
+# Identity of the guest being replicated
+configure_zfs_replication_vmid: ~
+configure_zfs_replication_source_node: ~
+configure_zfs_replication_guest_type: ct
+configure_zfs_replication_targets: []
+
+# Replication behaviour
+configure_zfs_replication_schedule: "*/15"
+configure_zfs_replication_rate: ~          # MB/s, null = unlimited
+configure_zfs_replication_comment: "Managed by Nanonode"
+configure_zfs_replication_disabled: false
+configure_zfs_replication_prune: true

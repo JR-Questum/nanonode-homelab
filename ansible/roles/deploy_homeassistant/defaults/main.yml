@@ -1,0 +1,64 @@
+---
+deploy_homeassistant_stack_name: homeassistant
+deploy_homeassistant_root: /srv/homeassistant
+deploy_homeassistant_config_dir: "{{ deploy_homeassistant_root }}/config"
+
+# Pinned deliberately. Home Assistant ships a feature release every month
+# and deprecations land with it, so :stable moving under you is how a
+# deploy silently changes the version. update_homeassistant.yml overrides
+# this with whatever the release channel currently calls stable; a deploy
+# on its own stays on the pin.
+deploy_homeassistant_version: "2026.9.1"
+deploy_homeassistant_registry: ghcr.io/home-assistant/home-assistant
+deploy_homeassistant_image: "{{ deploy_homeassistant_registry }}:{{ deploy_homeassistant_version }}"
+
+# Home Assistant migrates its config and its recorder database forward on
+# first start of a new release, and nothing migrates them back. Running an
+# older image on a migrated config is not a rollback - it is a broken
+# install - so the role refuses to do it. A snapshot is the way back.
+deploy_homeassistant_allow_downgrade: false
+
+deploy_homeassistant_timezone: Europe/Brussels
+
+# Discovery is the reason for host networking: mDNS, SSDP and DHCP
+# discovery all read broadcast and multicast traffic that never reaches a
+# bridged container. Set this false and the frontend still works, but
+# every device has to be added by hand.
+deploy_homeassistant_host_network: true
+
+# Only used when host networking is off. In host mode Home Assistant
+# listens on 8123 on the container's own address.
+deploy_homeassistant_bind: "0.0.0.0"
+deploy_homeassistant_port: 8123
+
+# Serial dongles (Zigbee, Z-Wave, a P1 meter cable) in compose's
+# "host:container" form, ideally by stable path:
+#   - /dev/serial/by-id/usb-ITead_Sonoff_Zigbee...-if00:/dev/ttyACM0
+# In an unprivileged LXC the device has to reach the container first -
+# a dev0 entry in the guest config - before Docker can pass it on.
+deploy_homeassistant_devices: []
+
+# Bluetooth needs the host's BlueZ over D-Bus. Off by default: an
+# unprivileged LXC has no /run/dbus to share unless you gave it one.
+deploy_homeassistant_bluetooth: false
+
+# configuration.yaml is left alone by default. Home Assistant writes a
+# working one on first start and the UI keeps its own state in .storage,
+# so there is nothing this role has to own. Turning this on makes Ansible
+# the owner of that one file - hand edits to it are reverted on the next
+# run - which is what you want once the config is worth version control.
+deploy_homeassistant_manage_config: false
+
+# Networks a reverse proxy in front of Home Assistant sits on. Without
+# these every request appears to come from the proxy, which breaks IP
+# bans and the logbook's "from" column. Only applied when the role
+# manages configuration.yaml.
+deploy_homeassistant_trusted_proxies: []
+
+# Merged into the managed configuration.yaml as-is, for the keys this
+# role has no opinion about (recorder:, logger:, homeassistant:, ...).
+deploy_homeassistant_config_extra: {}
+
+# First start unpacks and initialises the whole config directory, which
+# takes well past the stack role's default 300s on a small container.
+deploy_homeassistant_wait_timeout: 600

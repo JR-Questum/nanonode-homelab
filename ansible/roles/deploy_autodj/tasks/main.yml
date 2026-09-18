@@ -1,0 +1,51 @@
+---
+- name: Assert the catalogue database exists
+  ansible.builtin.stat:
+    path: "{{ deploy_autodj_data_dir }}/{{ deploy_autodj_db_name }}"
+  register: deploy_autodj_db
+
+- name: Fail if the aggregator has never run
+  ansible.builtin.assert:
+    that: deploy_autodj_db.stat.exists
+    fail_msg: >-
+      No catalogue at {{ deploy_autodj_data_dir }}/{{ deploy_autodj_db_name }}.
+      Run nanonode-aggregator.service before deploying the AutoDJ.
+    quiet: true
+
+- name: Resolve this role's file directories
+  ansible.builtin.set_fact:
+    deploy_autodj_files: "{{ role_path }}/files"
+    deploy_autodj_templates: "{{ role_path }}/templates"
+
+- name: Deploy the AutoDJ stack
+  ansible.builtin.include_role:
+    name: deploy_compose_stack
+  vars:
+    deploy_compose_stack_name: "{{ deploy_autodj_stack_name }}"
+    deploy_compose_stack_template: "{{ deploy_autodj_templates }}/compose.yml.j2"
+    deploy_compose_stack_build: true
+    deploy_compose_stack_env:
+      AUTODJ_DB: "/data/{{ deploy_autodj_db_name }}"
+      AUTODJ_API: "{{ deploy_autodj_api }}"
+      AUTODJ_WS: "{{ deploy_autodj_ws }}"
+      AUTODJ_ICECAST_STATUS: "{{ deploy_autodj_icecast_status }}"
+      AUTODJ_MOUNT: "{{ deploy_autodj_mount }}"
+      AUTODJ_TELNET_HOST: "{{ deploy_autodj_telnet_host }}"
+      AUTODJ_TELNET_PORT: "{{ deploy_autodj_telnet_port }}"
+      AUTODJ_VOICE_MOUNT: "{{ deploy_autodj_voice_mount }}"
+      AUTODJ_WINDOW_HOURS: "{{ deploy_autodj_window_hours }}"
+      AUTODJ_KIDS_RATIO: "{{ deploy_autodj_kids_ratio }}"
+      AUTODJ_IDLE_SECONDS: "{{ deploy_autodj_idle_seconds }}"
+      AUTODJ_POLL_SECONDS: "{{ deploy_autodj_poll_seconds }}"
+      AUTODJ_DJ_ENABLED: "{{ 1 if deploy_autodj_dj_enabled else 0 }}"
+      AUTODJ_DJ_MIN_GAP: "{{ deploy_autodj_dj_min_gap }}"
+      AUTODJ_DJ_MAX_GAP: "{{ deploy_autodj_dj_max_gap }}"
+      AUTODJ_VOICE_SUPPRESS_MINUTES: "{{ deploy_autodj_voice_suppress_minutes }}"
+    deploy_compose_stack_copies:
+      - src: "{{ deploy_autodj_files }}/Dockerfile"
+        dest: Dockerfile
+        mode: "0644"
+      - src: "{{ deploy_autodj_files }}/autodj.py"
+        dest: autodj.py
+        mode: "0644"
+        validate: 'python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" %s'

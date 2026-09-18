@@ -1,0 +1,13 @@
+---
+configure_ha_resource_vmid: ~
+configure_ha_resource_guest_type: ct
+configure_ha_resource_home_node: ~
+configure_ha_resource_nodes: []
+configure_ha_resource_home_priority: 2
+
+configure_ha_resource_state: started
+configure_ha_resource_strict: true
+configure_ha_resource_max_restart: 1
+configure_ha_resource_max_relocate: 1
+configure_ha_resource_disable: false
+configure_ha_resource_comment: "Managed by Nanonode"

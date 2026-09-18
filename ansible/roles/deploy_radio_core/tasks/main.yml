@@ -1,0 +1,121 @@
+---
+- name: Assert Icecast credentials are available
+  ansible.builtin.assert:
+    that:
+      - vault_icecast_source_password | default('') | length > 0
+      - vault_icecast_admin_password | default('') | length > 0
+      - vault_icecast_relay_password | default('') | length > 0
+    fail_msg: >-
+      deploy_radio_core requires vault_icecast_source_password,
+      vault_icecast_admin_password and vault_icecast_relay_password.
+    quiet: true
+
+- name: Ensure the ambient fallback directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_radio_core_ambient_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the pipe directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_radio_core_pipe_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the Spotify audio pipe exists
+  ansible.builtin.command:
+    argv: [mkfifo, "{{ deploy_radio_core_pipe_path }}"]
+  args:
+    creates: "{{ deploy_radio_core_pipe_path }}"
+
+# Read-write open (cat 0<>) requires write permission. mkfifo applies the
+# umask, so the mode must be set explicitly and enforced on every run.
+- name: Ensure the Spotify audio pipe is writable
+  ansible.builtin.file:
+    path: "{{ deploy_radio_core_pipe_path }}"
+    owner: root
+    group: root
+    mode: "0666"
+
+- name: Ensure the go-librespot state directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_radio_core_librespot_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Count the ambient fallback tracks
+  ansible.builtin.find:
+    paths: "{{ deploy_radio_core_ambient_dir }}"
+    patterns: "*.mp3"
+  register: deploy_radio_core_ambient
+
+- name: Report an empty fallback playlist
+  ansible.builtin.debug:
+    msg: >-
+      No MP3s in {{ deploy_radio_core_ambient_dir }} - the stream will be
+      silent when Spotify is idle. Liquidsoap watches the directory, so no
+      redeploy is needed after adding files.
+  when: deploy_radio_core_ambient.matched == 0
+
+- name: Resolve this role's template directory
+  ansible.builtin.set_fact:
+    deploy_radio_core_templates: "{{ role_path }}/templates"
+
+- name: Ensure the voice clip directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_radio_core_voice_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the model directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_radio_scheduler_models_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the Piper voice model is present
+  ansible.builtin.get_url:
+    url: >-
+      {{ deploy_radio_scheduler_voices_base }}/{{ deploy_radio_scheduler_voice_path }}/{{ item }}
+    dest: "{{ deploy_radio_scheduler_models_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  loop:
+    - "{{ deploy_radio_scheduler_piper_voice }}.onnx"
+    - "{{ deploy_radio_scheduler_piper_voice }}.onnx.json"
+
+- name: Deploy the radio stack
+  ansible.builtin.include_role:
+    name: deploy_compose_stack
+  vars:
+    deploy_compose_stack_name: "{{ deploy_radio_core_stack_name }}"
+    deploy_compose_stack_template: "{{ deploy_radio_core_templates }}/compose.yml.j2"
+    deploy_compose_stack_env:
+      ICECAST_SOURCE_PASSWORD: "{{ vault_icecast_source_password }}"
+    deploy_compose_stack_files:
+      - src: "{{ deploy_radio_core_templates }}/icecast.xml.j2"
+        dest: icecast.xml
+        mode: "0644"
+        validate: "python3 -c 'import sys,xml.dom.minidom as m; m.parse(sys.argv[1])' %s"
+      - src: "{{ deploy_radio_core_templates }}/librespot.yml.j2"
+        dest: librespot.yml
+        mode: "0644"
+      - src: "{{ deploy_radio_core_templates }}/radio.liq.j2"
+        dest: radio.liq
+        mode: "0644"
+        validate: >-
+          docker run --rm -v %s:/tmp/check.liq:ro
+          {{ deploy_radio_core_liquidsoap_image }}
+          --check /tmp/check.liq

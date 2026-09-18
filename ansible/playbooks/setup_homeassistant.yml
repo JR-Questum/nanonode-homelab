@@ -1,0 +1,24 @@
+---
+# Home Assistant Container (the plain Docker flavour, no Supervisor) on
+# its own LXC guest.
+#
+# The guest has to exist in the inventory first, with the host_vars
+# setup_lxc needs - see private.example/inventory/host_vars/
+# ct-homeassistant.yml for the full set. With those in place, uncomment
+# the import below and this playbook creates the container as well.
+
+- name: Provision and bootstrap the Home Assistant container
+  ansible.builtin.import_playbook: setup_lxc.yml
+  vars:
+    setup_lxc_hosts: ct-homeassistant
+
+- name: Deploy the Home Assistant host
+  hosts: "{{ homeassistant_hosts | default('ct-homeassistant') }}"
+
+  roles:
+    - role: install_docker
+    - role: deploy_homeassistant
+
+  post_tasks:
+    - name: Reset connection to pick up docker group membership
+      ansible.builtin.meta: reset_connection

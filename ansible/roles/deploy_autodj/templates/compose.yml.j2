@@ -1,0 +1,30 @@
+services:
+  autodj:
+    build:
+      context: .
+    image: nanonode-autodj:local
+    container_name: radio-autodj
+    restart: unless-stopped
+    # go-librespot's API, Icecast's published port and Liquidsoap's
+    # telnet are all on the host's loopback, so share the host netns.
+    network_mode: host
+    environment:
+      AUTODJ_DB: ${AUTODJ_DB}
+      AUTODJ_API: ${AUTODJ_API}
+      AUTODJ_WS: ${AUTODJ_WS}
+      AUTODJ_ICECAST_STATUS: ${AUTODJ_ICECAST_STATUS}
+      AUTODJ_MOUNT: ${AUTODJ_MOUNT}
+      AUTODJ_TELNET_HOST: ${AUTODJ_TELNET_HOST}
+      AUTODJ_TELNET_PORT: ${AUTODJ_TELNET_PORT}
+      AUTODJ_VOICE_MOUNT: ${AUTODJ_VOICE_MOUNT}
+      AUTODJ_WINDOW_HOURS: ${AUTODJ_WINDOW_HOURS}
+      AUTODJ_KIDS_RATIO: ${AUTODJ_KIDS_RATIO}
+      AUTODJ_IDLE_SECONDS: ${AUTODJ_IDLE_SECONDS}
+      AUTODJ_POLL_SECONDS: ${AUTODJ_POLL_SECONDS}
+      AUTODJ_DJ_ENABLED: ${AUTODJ_DJ_ENABLED}
+      AUTODJ_DJ_MIN_GAP: ${AUTODJ_DJ_MIN_GAP}
+      AUTODJ_DJ_MAX_GAP: ${AUTODJ_DJ_MAX_GAP}
+      AUTODJ_VOICE_SUPPRESS_MINUTES: ${AUTODJ_VOICE_SUPPRESS_MINUTES}
+    volumes:
+      - {{ deploy_autodj_data_dir }}:/data:rw
+      - /etc/localtime:/etc/localtime:ro

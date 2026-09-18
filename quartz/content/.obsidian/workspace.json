@@ -13,15 +13,28 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Software/Ansible/Roles/Validate Cluster Quorum.md",
+                "file": "Changelog.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Validate Cluster Quorum"
+              "title": "Changelog"
+            }
+          },
+          {
+            "id": "bd2313fc3cb05383",
+            "type": "leaf",
+            "state": {
+              "type": "release-notes",
+              "state": {
+                "currentVersion": "1.13.7"
+              },
+              "icon": "lucide-book-up",
+              "title": "Release Notes 1.13.7"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -41,7 +54,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Files"
@@ -183,20 +198,20 @@
       "bases:Create new base": false
     }
   },
-  "active": "98fa99d3bf1bac9d",
+  "active": "bd2313fc3cb05383",
   "lastOpenFiles": [
+    "Software/Ansible/Roles/Validate Cluster Quorum.md",
+    "index.md",
+    "Changelog.md",
     "Software/Ansible/Roles/Update System.md",
     "Software/Ansible/Roles/Ensure HA Maintenance.md",
     "Software/Ansible/Roles/Check Pending Updates.md",
     "Software/Ansible/Playbooks/Update Cluster.md",
     "Software/Ansible/Playbooks/Setup Nodes.md",
-    "Software/Ansible/Roles/Validate Cluster Quorum.md",
-    "Changelog.md",
     "Hardware/Final Build.md",
     "assets/images/Proxmox/Final_build_faceplates_wood.jpg",
     "assets/images/Proxmox/Final_build_faceplates_no_wood.jpg",
     "assets/images/Proxmox/Final_build_booted.jpg",
-    "index.md",
     "Software/Ansible/Ansible overview.md",
     "Software/Ansible/Roles/Setup HA.md",
     "Software/Ansible/Roles/Proxmox API Prereqs.md",

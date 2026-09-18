@@ -1,0 +1,23 @@
+---
+_pvesr_jobs: "{{ _pvesr.stdout | default('[]', true) | from_json }}"
+
+_guest_jobs: >-
+  {{ _pvesr_jobs
+     | selectattr('guest', 'equalto', configure_zfs_replication_vmid | int)
+     | selectattr('source', 'equalto', configure_zfs_replication_source_node)
+     | list }}
+
+_existing_targets: "{{ _guest_jobs | map(attribute='target') | list }}"
+
+_missing_targets: >-
+  {{ configure_zfs_replication_targets | difference(_existing_targets) }}
+
+_used_indices: "{{ _guest_jobs | map(attribute='jobnum') | list }}"
+
+_free_ids: >-
+  {{ (range(0, 100) | difference(_used_indices) | list)[:_missing_targets | length] }}
+
+_orphan_ids: >-
+  {{ _guest_jobs
+     | rejectattr('target', 'in', configure_zfs_replication_targets)
+     | map(attribute='id') | list }}

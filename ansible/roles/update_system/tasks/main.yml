@@ -29,6 +29,25 @@
   changed_when: false
   check_mode: false
 
+- name: Determine which services need restarting
+  ansible.builtin.command:
+    cmd: needrestart -b -r l
+  register: update_system_needrestart
+  changed_when: false
+
+- name: Restart outdated services without rebooting
+  ansible.builtin.command:
+    cmd: needrestart -b -r a
+  when: _update_system_restartable | length > 0
+  changed_when: true
+  vars:
+    _update_system_restartable: >-
+      {{ update_system_needrestart.stdout_lines
+         | select('match', '^NEEDRESTART-SVC: ')
+         | map('regex_replace', '^NEEDRESTART-SVC: ', '')
+         | reject('in', update_system_needrestart_ignore)
+         | list }}
+
 - name: Determine the kernel restart status
   ansible.builtin.set_fact:
     update_system_kernel_status: >-
@@ -36,12 +55,6 @@
          | select('match', '^NEEDRESTART-KSTA:')
          | map('regex_replace', '^NEEDRESTART-KSTA:\s*', '')
          | first | default('0') | int }}
-
-- name: Restart outdated services without rebooting
-  ansible.builtin.command:
-    cmd: needrestart -r a -b
-  when: update_system_kernel_status < 2
-  changed_when: true
 
 - name: Reboot to activate the new kernel
   ansible.builtin.reboot:

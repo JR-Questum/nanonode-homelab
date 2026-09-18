@@ -1,0 +1,42 @@
+---
+- name: Assert HA variables are defined
+  ansible.builtin.assert:
+    that:
+      - configure_ha_resource_vmid is not none
+      - configure_ha_resource_home_node is not none
+      - configure_ha_resource_nodes | length > 0
+      - configure_ha_resource_home_node in configure_ha_resource_nodes
+    fail_msg: >-
+      configure_ha_resource requires vmid, home_node and a non-empty nodes list
+      that includes the home node.
+    quiet: true
+
+- name: Ensure the guest is an HA resource
+  community.proxmox.proxmox_cluster_ha_resources:
+    api_host: "{{ hostvars[configure_ha_resource_home_node].ansible_host }}"
+    api_user: "{{ vault_proxmox_root_user }}"
+    api_password: "{{ vault_proxmox_root_password }}"
+    validate_certs: true
+    name: "{{ _ha_sid }}"
+    state: present
+    max_restart: "{{ configure_ha_resource_max_restart }}"
+    max_relocate: "{{ configure_ha_resource_max_relocate }}"
+  become: false
+  delegate_to: "{{ configure_ha_resource_home_node }}"
+
+- name: Ensure the node affinity rule exists
+  community.proxmox.proxmox_cluster_ha_rules:
+    api_host: "{{ hostvars[configure_ha_resource_home_node].ansible_host }}"
+    api_user: "{{ vault_proxmox_root_user }}"
+    api_password: "{{ vault_proxmox_root_password }}"
+    validate_certs: true
+    name: "{{ _ha_rule_name }}"
+    state: present
+    type: node-affinity
+    nodes: "{{ _ha_rule_nodes }}"
+    resources: "{{ _ha_sid }}"
+    strict: "{{ configure_ha_resource_strict }}"
+    comment: "{{ configure_ha_resource_comment }}"
+    disable: "{{ configure_ha_resource_disable }}"
+  become: false
+  delegate_to: "{{ configure_ha_resource_home_node }}"

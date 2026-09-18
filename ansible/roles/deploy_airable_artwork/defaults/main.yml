@@ -1,0 +1,23 @@
+---
+deploy_airable_artwork_name: airable-artwork
+deploy_airable_artwork_dir: /srv/airable/artwork
+
+# Written where deploy_airable_proxy serves the station logo from.
+deploy_airable_artwork_dest: "{{ deploy_airable_artwork_dir }}/nanonode.png"
+deploy_airable_artwork_state: "{{ deploy_airable_artwork_dir }}/.last-cover"
+
+# go-librespot's HTTP API, loopback on this host.
+deploy_airable_artwork_api: "http://127.0.0.1:3678"
+
+# The radio only re-reads the logo when the station is selected, so this
+# has no reason to be aggressive. It exists so the cover is current
+# whenever a selection happens.
+deploy_airable_artwork_interval: 60
+
+deploy_airable_artwork_max_bytes: 2097152
+deploy_airable_artwork_timeout: 10
+
+# Follows the tap by default: tearing the proxy down should not leave a
+# timer refreshing artwork nothing serves. Override to decouple them.
+deploy_airable_artwork_state_enabled: >-
+  {{ deploy_airable_proxy_state | default('present') == 'present' }}

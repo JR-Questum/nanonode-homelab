@@ -1,0 +1,45 @@
+services:
+  scheduler:
+    build:
+      context: .
+    image: nanonode-scheduler:local
+    container_name: radio-scheduler
+    restart: unless-stopped
+    # go-librespot, Liquidsoap telnet, Icecast and Ollama are all on the
+    # host's loopback, so share the host network namespace.
+    network_mode: host
+    environment:
+      SCHED_LIBRESPOT_API: ${SCHED_LIBRESPOT_API}
+      SCHED_TELNET_HOST: ${SCHED_TELNET_HOST}
+      SCHED_TELNET_PORT: ${SCHED_TELNET_PORT}
+      SCHED_ICECAST_STATUS: ${SCHED_ICECAST_STATUS}
+      SCHED_MOUNT: ${SCHED_MOUNT}
+      SCHED_VOICE_DIR: ${SCHED_VOICE_DIR}
+      SCHED_VOICE_MOUNT: ${SCHED_VOICE_MOUNT}
+      SCHED_DB: ${SCHED_DB}
+      SCHED_PIPER_MODEL: ${SCHED_PIPER_MODEL}
+      SCHED_TTS_LEAD_IN: ${SCHED_TTS_LEAD_IN}
+      SCHED_TTS_THREADS: ${SCHED_TTS_THREADS}
+      SCHED_TTS_TEST: ${SCHED_TTS_TEST}
+      SCHED_OLLAMA_API: ${SCHED_OLLAMA_API}
+      SCHED_OLLAMA_MODEL: ${SCHED_OLLAMA_MODEL}
+      SCHED_OLLAMA_NUM_THREAD: ${SCHED_OLLAMA_NUM_THREAD}
+      SCHED_OLLAMA_TIMEOUT: ${SCHED_OLLAMA_TIMEOUT}
+      SCHED_NEWS_FEED: ${SCHED_NEWS_FEED}
+      SCHED_NEWS_ENABLED: ${SCHED_NEWS_ENABLED}
+      SCHED_NEWS_FETCH_MINUTE: ${SCHED_NEWS_FETCH_MINUTE}
+      SCHED_NEWS_PLAY_MINUTE: ${SCHED_NEWS_PLAY_MINUTE}
+      SCHED_NEWS_MAX_AGE_MINUTES: ${SCHED_NEWS_MAX_AGE_MINUTES}
+      SCHED_WEATHER_ENABLED: ${SCHED_WEATHER_ENABLED}
+      SCHED_WEATHER_MINUTES: ${SCHED_WEATHER_MINUTES}
+      SCHED_WEATHER_LAT: ${SCHED_WEATHER_LAT}
+      SCHED_WEATHER_LON: ${SCHED_WEATHER_LON}
+      SCHED_WEATHER_TZ: ${SCHED_WEATHER_TZ}
+      SCHED_WEATHER_PLACE: ${SCHED_WEATHER_PLACE}
+      SCHED_DJ_ENABLED: ${SCHED_DJ_ENABLED}
+      SCHED_DJ_POLL_SECONDS: ${SCHED_DJ_POLL_SECONDS}
+    volumes:
+      - {{ deploy_radio_scheduler_voice_dir }}:/voice:rw
+      - {{ deploy_radio_scheduler_models_dir }}:/models:ro
+      - {{ deploy_radio_scheduler_root }}/data:/data:rw
+      - /etc/localtime:/etc/localtime:ro

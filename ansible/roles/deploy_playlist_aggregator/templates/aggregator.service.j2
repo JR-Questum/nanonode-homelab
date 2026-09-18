@@ -1,0 +1,18 @@
+# Managed by Ansible - deploy_playlist_aggregator.
+[Unit]
+Description=Aggregate Spotify playlists into the nanonode catalogue
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# --rm so a failed run leaves no container behind; --name makes a
+# concurrent run fail loudly rather than corrupt the database.
+ExecStart=/usr/bin/docker run --rm \
+    --name {{ deploy_playlist_aggregator_name }} \
+    --env-file {{ deploy_playlist_aggregator_dir }}/aggregator.env \
+    -v {{ deploy_playlist_aggregator_dir }}:/app:ro \
+    -v {{ deploy_playlist_aggregator_data_dir }}:/data:rw \
+    {{ deploy_playlist_aggregator_image }} \
+    python3 /app/aggregate.py
+TimeoutStartSec=1800

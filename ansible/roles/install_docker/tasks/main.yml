@@ -1,0 +1,74 @@
+---
+- name: Ensure apt keyring directory exists
+  ansible.builtin.file:
+    path: "{{ install_docker_apt_key_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure prerequisite packages are present
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gnupg
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure Docker apt signing key is installed
+  ansible.builtin.get_url:
+    url: "{{ install_docker_apt_key_url }}"
+    dest: "{{ install_docker_apt_key_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+
+- name: Ensure Docker apt repository is configured
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "{{ install_docker_apt_uri }}"
+    suites: ["{{ ansible_facts['distribution_release'] }}"]
+    components: [stable]
+    architectures: ["{{ install_docker_arch }}"]
+    signed_by: "{{ install_docker_apt_key_path }}"
+    enabled: true
+    state: present
+  vars:
+    install_docker_arch: >-
+      {{ 'amd64' if ansible_facts['architecture'] == 'x86_64'
+         else 'arm64' if ansible_facts['architecture'] == 'aarch64'
+         else ansible_facts['architecture'] }}
+
+- name: Ensure Docker Engine is installed
+  ansible.builtin.apt:
+    name: "{{ install_docker_packages }}"
+    state: "{{ install_docker_package_state }}"
+    update_cache: true
+
+- name: Ensure Docker daemon configuration is in place
+  ansible.builtin.copy:
+    content: >-
+      {{ install_docker_daemon_config
+         | combine(install_docker_daemon_config_extra, recursive=true)
+         | to_nice_json }}
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+  notify: install_docker | Restart docker
+
+- name: Ensure Docker service is enabled and running
+  ansible.builtin.systemd_service:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Ensure users are members of the docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ install_docker_users }}"

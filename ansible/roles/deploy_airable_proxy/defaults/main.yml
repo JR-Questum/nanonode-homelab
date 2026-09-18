@@ -1,0 +1,109 @@
+---
+deploy_airable_proxy_stack_name: airable-tap
+deploy_airable_proxy_root: /srv/airable
+deploy_airable_proxy_log_dir: "{{ deploy_airable_proxy_root }}/logs"
+
+# Stdlib-only script, so the stock image needs nothing added to it.
+deploy_airable_proxy_image: python:3.13-alpine
+
+# The real Airable host, pinned by address deliberately: the DNS name is
+# being rewritten to point here, so a hostname would make the tap talk to
+# itself. Re-check against a resolver that does not carry the rewrite:
+#   dig +short airable.wifiradiofrontier.com @9.9.9.9
+deploy_airable_proxy_upstream: 49.13.34.80
+
+# Step 2 gate: offer the radio our own certificate and see whether the
+# firmware accepts it. Off by default - while it is on, the device is
+# talking to us rather than to Airable.
+deploy_airable_proxy_probe: false
+
+# port:mode. http and tls are straight relays and the mode only selects
+# how the copied bytes are logged. probe terminates TLS.
+deploy_airable_proxy_ports:
+  - "80:http"
+  - "443:{{ 'probe' if deploy_airable_proxy_probe | bool else 'tls' }}"
+
+# Self-signed, generated on the host, covering both catalogue and assets
+# names. Not secret - it exists to be rejected or accepted.
+deploy_airable_proxy_cert_dir: "{{ deploy_airable_proxy_root }}/tls"
+deploy_airable_proxy_cert: "{{ deploy_airable_proxy_cert_dir }}/probe-cert.pem"
+deploy_airable_proxy_key: "{{ deploy_airable_proxy_cert_dir }}/probe-key.pem"
+deploy_airable_proxy_cert_days: 30
+
+# After this many refused handshakes the listener reverts to passthrough
+# on its own, so a firmware that validates costs the radio a couple of
+# failed requests rather than its catalogue.
+deploy_airable_proxy_probe_max_failures: 2
+
+# The device offers TLS 1.2 with an old suite list; OpenSSL 3 would
+# reject some of it at the default security level, and a handshake lost
+# on ciphers reads exactly like a rejected certificate.
+deploy_airable_proxy_ciphers: "DEFAULT:@SECLEVEL=1"
+
+# Catalogue entries to replace, as {target substring: record}. The device
+# only attaches a description and a logo to a station it holds a real
+# Airable id for, so the way to reach those fields for a local stream is
+# to borrow the id of a catalogued station and answer for it here.
+#
+# Whichever id is borrowed stops working as its real station on this
+# radio, so pick one from the presets that is never listened to. Also
+# rewrite that station's play/station path, or the device will resolve
+# the genuine stream and play it instead.
+#
+#   deploy_airable_proxy_rewrites:
+#     "/frontiersmart/radio/7478235217276961":
+#       id: ["frontiersmart", "radio", "7478235217276961"]
+#       title: "NanonodeRadio"
+#       description: "Homelab radio"
+#       slogan: "Powered by nanonode"
+#       images: []
+#       streams:
+#         - url: "http://10.10.40.70:8000/nanonode"
+#           codec: {name: "MP3", bitrate: 192, samplerate: 44.1, channels: 2}
+#           reliability: 1
+deploy_airable_proxy_rewrites: {}
+
+# Artwork to serve from the assets host, as {target substring: local file}.
+# The path is invented - it only has to match what images[].url in the
+# rewritten record points at. 150x150 PNG is what the real catalogue uses.
+#
+#   deploy_airable_proxy_assets:
+#     "/assets/150x150/00/00/nanonode.png": files/nanonode-logo.png
+deploy_airable_proxy_assets: {}
+
+# Artwork written on the target by something else - deploy_airable_artwork
+# keeps the current Spotify cover here. Values are filenames inside
+# deploy_airable_proxy_artwork_dir; the tap re-reads them per request.
+#
+#   deploy_airable_proxy_live_assets:
+#     "/assets/150x150/00/00/nanonode.png": nanonode.png
+deploy_airable_proxy_artwork_dir: "{{ deploy_airable_proxy_root }}/artwork"
+deploy_airable_proxy_live_assets: {}
+
+deploy_airable_proxy_asset_types:
+  ".png": image/png
+  ".jpg": image/jpeg
+  ".jpeg": image/jpeg
+  ".gif": image/gif
+  ".webp": image/webp
+
+deploy_airable_proxy_upstream_host: airable.wifiradiofrontier.com
+deploy_airable_proxy_upstream_verify: true
+
+# Loopback-only stats endpoint, also used as the container healthcheck.
+deploy_airable_proxy_status_port: 8081
+
+deploy_airable_proxy_max_body: 65536
+deploy_airable_proxy_connect_timeout: 10
+deploy_airable_proxy_idle_timeout: 600
+deploy_airable_proxy_log_max_bytes: 67108864
+
+# Names to rewrite towards this host. Reported at the end of the run, not
+# applied: AdGuard is not managed from this repo.
+deploy_airable_proxy_rewrite_names:
+  - airable.wifiradiofrontier.com
+  - assets.wifiradiofrontier.com
+
+# absent tears the stack down. The DNS rewrites still have to come out by
+# hand, and should come out first.
+deploy_airable_proxy_state: present

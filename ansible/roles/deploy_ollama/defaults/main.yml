@@ -1,0 +1,29 @@
+---
+deploy_ollama_stack_name: ollama
+deploy_ollama_root: /srv/radio
+deploy_ollama_models_dir: "{{ deploy_ollama_root }}/ollama"
+
+deploy_ollama_image: ollama/ollama:0.32.15
+
+# gemma2:2b writes usable Dutch; qwen2.5:3b did not, and was slower.
+deploy_ollama_model: gemma2:2b
+
+deploy_ollama_models:
+  - gemma2:2b
+
+# Loopback only: the API is unauthenticated.
+deploy_ollama_bind: "127.0.0.1"
+deploy_ollama_port: 11434
+
+# -1 keeps the model resident permanently. The default 5m unload means
+# a reload before every generation. Costs ~2GB of RAM held continuously.
+deploy_ollama_keep_alive: "-1"
+
+# Passed per-request in the API's options, NOT via the environment:
+# llama.cpp reads the HOST's core count from /proc/cpuinfo rather than
+# the cgroup limit, spawning 6 threads into a 4-core cpuset. That cost a
+# 20x slowdown - 0.5 tok/s versus 10.6 with num_thread set explicitly.
+deploy_ollama_num_thread: 4
+
+# Pulling a ~2GB model over a slow link takes a while.
+deploy_ollama_pull_timeout: 1800

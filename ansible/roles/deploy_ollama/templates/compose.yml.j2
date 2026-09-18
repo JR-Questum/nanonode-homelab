@@ -1,0 +1,20 @@
+services:
+  ollama:
+    image: {{ deploy_ollama_image }}
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      # Loopback only: the API has no authentication.
+      - "{{ deploy_ollama_bind }}:{{ deploy_ollama_port }}:11434"
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE}
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL}
+    volumes:
+      - {{ deploy_ollama_models_dir }}:/root/.ollama:rw
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s

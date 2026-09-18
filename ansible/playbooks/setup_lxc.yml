@@ -1,0 +1,37 @@
+---
+- name: Provision LXC containers
+  hosts: "{{ setup_lxc_hosts | default('containers') }}"
+  gather_facts: false
+  roles:
+    - setup_lxc
+
+- name: Bring containers under management
+  hosts: "{{ setup_lxc_hosts | default('containers') }}"
+  gather_facts: false
+  vars:
+    ansible_connection: community.proxmox.proxmox_pct_remote
+    ansible_host: "{{ hostvars[setup_lxc_node].ansible_host }}"
+    ansible_user: root
+    ansible_ssh_private_key_file: ~/.ssh/nanonode
+    ansible_become: false
+    proxmox_vmid: "{{ setup_lxc_vmid }}"
+  tasks:
+    - name: Wait for the container to accept commands
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        sleep: 5
+        timeout: 60
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Apply base host configuration
+      ansible.builtin.include_role:
+        name: setup_host
+
+- name: Update containers and configure HA
+  hosts: "{{ setup_lxc_hosts | default('containers') }}"
+  roles:
+    - update_system
+    - configure_zfs_replication
+    - configure_ha_resource

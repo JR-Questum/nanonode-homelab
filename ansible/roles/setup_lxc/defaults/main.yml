@@ -1,0 +1,36 @@
+---
+# --- Identity ---
+setup_lxc_vmid: ~
+setup_lxc_hostname: "{{ inventory_hostname }}"
+setup_lxc_node: ~
+setup_lxc_description: "Managed by Ansible (nanonode). Manual edits will be reverted."
+
+# --- Template ---
+setup_lxc_template_storage: local
+setup_lxc_template_name: ~
+setup_lxc_ostemplate: "{{ setup_lxc_template_storage }}:vztmpl/{{ setup_lxc_template_name }}"
+
+# --- Resources ---
+setup_lxc_cores: 2
+setup_lxc_memory: 1024          # MiB
+setup_lxc_swap: 512             # MiB
+setup_lxc_disk_storage: local-zfs
+setup_lxc_disk_size: 8          # GiB
+
+# --- Network ---
+setup_lxc_netif_name: eth0
+setup_lxc_bridge: vmbr0
+setup_lxc_ip: ~                 
+setup_lxc_gateway: ~
+setup_lxc_vlan_tag: ~
+
+# --- Behaviour ---
+setup_lxc_unprivileged: true
+setup_lxc_onboot: false
+setup_lxc_features: []
+setup_lxc_state: started
+setup_lxc_timeout: 120
+
+# --- Access ---
+setup_lxc_root_password: ~
+setup_lxc_pubkeys: ~

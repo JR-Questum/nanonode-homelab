@@ -1,0 +1,17 @@
+---
+deploy_playlist_aggregator_name: nanonode-aggregator
+deploy_playlist_aggregator_root: /srv/radio
+deploy_playlist_aggregator_dir: "{{ deploy_playlist_aggregator_root }}/aggregator"
+deploy_playlist_aggregator_data_dir: "{{ deploy_playlist_aggregator_root }}/data"
+deploy_playlist_aggregator_db: "{{ deploy_playlist_aggregator_data_dir }}/nanonode.db"
+
+deploy_playlist_aggregator_image: python:3.13-slim
+
+# Playlists to aggregate: [{id: ..., name: ...}]. Site policy - set in
+# host_vars, not here.
+deploy_playlist_aggregator_playlists: []
+
+# systemd OnCalendar expression. Sunday 04:00 with jitter, so a shared
+# egress IP is not hitting Spotify at the same instant every week.
+deploy_playlist_aggregator_schedule: "Sun *-*-* 04:00:00"
+deploy_playlist_aggregator_splay: 30min

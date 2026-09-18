@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+# Managed by the deploy_homeassistant role. Edits here are reverted on
+# the next run - put changes in deploy_homeassistant_config_extra, or set
+# deploy_homeassistant_manage_config to false to hand the file back.
+
+# Pulls in the standard set of integrations, discovery and the frontend.
+default_config:
+
+frontend:
+  themes: !include_dir_merge_named themes
+{% if deploy_homeassistant_trusted_proxies %}
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+{% for proxy in deploy_homeassistant_trusted_proxies %}
+    - {{ proxy }}
+{% endfor %}
+{% endif %}
+
+# Written by the UI's editors, not by Ansible.
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+{% if deploy_homeassistant_config_extra %}
+
+{{ deploy_homeassistant_config_extra | to_nice_yaml(indent=2) | trim }}
+{% endif %}

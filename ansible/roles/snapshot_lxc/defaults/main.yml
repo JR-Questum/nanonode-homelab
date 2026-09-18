@@ -1,0 +1,21 @@
+---
+# Defaulted from the setup_lxc host_vars every container in this inventory
+# already carries, so a guest needs no extra variables to be snapshottable.
+snapshot_lxc_vmid: "{{ setup_lxc_vmid | default(None) }}"
+snapshot_lxc_node: "{{ setup_lxc_node | default(None) }}"
+
+# Proxmox accepts [A-Za-z][A-Za-z0-9_-]*, so the name has to start with a
+# letter - a bare timestamp is rejected.
+snapshot_lxc_name: "ansible-{{ ansible_facts['date_time'].iso8601_basic_short | lower }}"
+snapshot_lxc_description: "Managed by Nanonode"
+
+# Older snapshots beyond this are removed, but only on a run that actually
+# took one. A ZFS snapshot costs nothing until the guest diverges from it;
+# what it does cost is a guest that can no longer be moved off its node
+# without carrying them, so this stays small.
+snapshot_lxc_retention: 3
+
+# RAM state. Only meaningful for QEMU guests - a container cannot do it.
+snapshot_lxc_vmstate: false
+
+snapshot_lxc_timeout: 300

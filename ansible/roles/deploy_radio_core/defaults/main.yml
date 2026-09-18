@@ -1,0 +1,78 @@
+---
+deploy_radio_core_stack_name: radio
+deploy_radio_core_root: /srv/radio
+
+# Pin to digests once confirmed - tags are rebuilt on base image updates.
+deploy_radio_core_icecast_image: ghcr.io/libretime/icecast:2.5.0-alpine
+deploy_radio_core_liquidsoap_image: savonet/liquidsoap:v2.4.5
+deploy_radio_core_librespot_image: ghcr.io/devgianlu/go-librespot:v0.7.3
+
+deploy_radio_core_icecast_port: 8000
+deploy_radio_core_mount: /nanonode
+
+# MP3 - the M-9000S is a Frontier Silicon device and will not play Ogg/Opus.
+deploy_radio_core_bitrate: 192
+deploy_radio_core_samplerate: 44100
+
+deploy_radio_core_station_name: nanonode radio
+deploy_radio_core_station_description: Homelab radio
+deploy_radio_core_station_genre: Various
+deploy_radio_core_station_url: "http://{{ ansible_host }}:{{ deploy_radio_core_icecast_port }}{{ deploy_radio_core_mount }}"
+deploy_radio_core_location: Homelab
+deploy_radio_core_admin_email: admin@localhost
+
+deploy_radio_core_ambient_dir: "{{ deploy_radio_core_root }}/ambient"
+deploy_radio_core_voice_dir: "{{ deploy_radio_core_root }}/voice"
+deploy_radio_core_max_listeners: 20
+deploy_radio_core_log_level: 3
+
+# --- Spotify bridge ---
+deploy_radio_core_librespot_dir: "{{ deploy_radio_core_root }}/librespot"
+deploy_radio_core_pipe_dir: "{{ deploy_radio_core_root }}/pipe"
+deploy_radio_core_pipe_path: "{{ deploy_radio_core_pipe_dir }}/spotify.fifo"
+
+deploy_radio_core_spotify_device_name: nanonode radio
+deploy_radio_core_spotify_device_type: speaker
+deploy_radio_core_spotify_bitrate: 320
+
+# Restricting the advertised interface stops go-librespot announcing
+# itself on Docker's bridge, where no Spotify client can reach it.
+deploy_radio_core_spotify_mdns_interface: eth0
+deploy_radio_core_spotify_zeroconf_port: 36341
+
+# Loopback for now. Phase 8 may need this reachable from elsewhere.
+deploy_radio_core_spotify_api_address: 127.0.0.1
+deploy_radio_core_spotify_api_port: 3678
+
+# Spotify normalises to -14 LUFS itself; the master limiter below only
+# catches encoder overshoot and level jumps at source transitions.
+deploy_radio_core_spotify_normalisation: true
+deploy_radio_core_spotify_pregain: 0
+
+# The AutoDJ selects tracks, not Spotify's recommender.
+deploy_radio_core_spotify_disable_autoplay: true
+
+# --- Voice queue and ducking ---
+# Liquidsoap's telnet server: how the scheduler pushes voice clips.
+# Published on loopback only - the protocol has no authentication.
+deploy_radio_core_telnet_port: 1234
+
+# duck_level is the music's gain while voice plays. A short duration
+# matters: smooth_add starts its fade when the voice source begins
+# producing audio, so a long ramp buries the first word.
+deploy_radio_core_duck_level: 0.15
+deploy_radio_core_duck_duration: 1.0
+
+# --- Master limiter ---
+# Catches encoder overshoot and level jumps at the seam between sources.
+# Not a loudness normaliser: go-librespot already applies Spotify's
+# per-track -14 LUFS gain.
+deploy_radio_core_limiter_enabled: true
+deploy_radio_core_limiter_threshold: -1.5
+deploy_radio_core_limiter_attack: 5.0
+deploy_radio_core_limiter_release: 200.0
+
+# Voice clips (news bulletins, TTS) are mastered well below Spotify's
+# -14 LUFS. Amplified before the mix so they sit at a comparable level;
+# the master limiter downstream catches any overshoot.
+deploy_radio_core_voice_gain: 2.5

@@ -1,0 +1,40 @@
+---
+- name: Ensure the Ollama model directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_ollama_models_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Resolve this role's template directory
+  ansible.builtin.set_fact:
+    deploy_ollama_templates: "{{ role_path }}/templates"
+
+- name: Deploy the Ollama stack
+  ansible.builtin.include_role:
+    name: deploy_compose_stack
+  vars:
+    deploy_compose_stack_name: "{{ deploy_ollama_stack_name }}"
+    deploy_compose_stack_template: "{{ deploy_ollama_templates }}/compose.yml.j2"
+    deploy_compose_stack_env:
+      OLLAMA_KEEP_ALIVE: "{{ deploy_ollama_keep_alive }}"
+      OLLAMA_NUM_PARALLEL: "1"
+
+- name: Read the models already present
+  ansible.builtin.command:
+    argv: [docker, exec, ollama, ollama, list]
+  changed_when: false
+  register: deploy_ollama_present
+  retries: 12
+  delay: 5
+  until: deploy_ollama_present.rc == 0
+
+- name: Ensure the configured models are pulled
+  ansible.builtin.command:
+    argv: [docker, exec, ollama, ollama, pull, "{{ item }}"]
+  loop: "{{ deploy_ollama_models }}"
+  when: item.split(':')[0] not in deploy_ollama_present.stdout
+  changed_when: true
+  async: "{{ deploy_ollama_pull_timeout }}"
+  poll: 15

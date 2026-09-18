@@ -1,0 +1,26 @@
+---
+deploy_compose_stack_name: null
+deploy_compose_stack_template: null
+
+deploy_compose_stack_root: /opt/stacks
+deploy_compose_stack_dir: "{{ deploy_compose_stack_root }}/{{ deploy_compose_stack_name }}"
+
+deploy_compose_stack_owner: root
+deploy_compose_stack_group: root
+deploy_compose_stack_dir_mode: "0750"
+
+deploy_compose_stack_env: {}
+deploy_compose_stack_files: []
+
+deploy_compose_stack_state: present
+deploy_compose_stack_pull: missing
+deploy_compose_stack_remove_orphans: true
+deploy_compose_stack_wait: true
+deploy_compose_stack_wait_timeout: 300
+
+# Verbatim files (not templated). Same item shape as _files.
+deploy_compose_stack_copies: []
+
+# Rebuild images from the stack's Dockerfile when sources change.
+# Only meaningful for stacks with a build: section.
+deploy_compose_stack_build: false

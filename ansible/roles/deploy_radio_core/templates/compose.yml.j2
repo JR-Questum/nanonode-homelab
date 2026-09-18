@@ -1,0 +1,49 @@
+services:
+  icecast:
+    image: {{ deploy_radio_core_icecast_image }}
+    container_name: radio-icecast
+    restart: unless-stopped
+    ports:
+      - "{{ deploy_radio_core_icecast_port }}:8000"
+    volumes:
+      - ./icecast.xml:/etc/icecast.xml:ro
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/status-json.xsl"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  librespot:
+    image: {{ deploy_radio_core_librespot_image }}
+    container_name: radio-librespot
+    restart: unless-stopped
+    # Host networking is required: mDNS multicast does not cross the
+    # Docker bridge, so Spotify Connect discovery would never work.
+    network_mode: host
+    volumes:
+      - {{ deploy_radio_core_librespot_dir }}:/config:rw
+      - ./librespot.yml:/config/config.yml:ro
+      - {{ deploy_radio_core_pipe_dir }}:{{ deploy_radio_core_pipe_dir }}:rw
+      - /etc/localtime:/etc/localtime:ro
+
+  liquidsoap:
+    image: {{ deploy_radio_core_liquidsoap_image }}
+    container_name: radio-liquidsoap
+    restart: unless-stopped
+    depends_on:
+      icecast:
+        condition: service_healthy
+    environment:
+      ICECAST_SOURCE_PASSWORD: ${ICECAST_SOURCE_PASSWORD}
+    ports:
+      # Loopback only: the telnet protocol is unauthenticated.
+      - "127.0.0.1:{{ deploy_radio_core_telnet_port }}:{{ deploy_radio_core_telnet_port }}"
+    volumes:
+      - ./radio.liq:/etc/liquidsoap/radio.liq:ro
+      - {{ deploy_radio_core_ambient_dir }}:/media/ambient:ro
+      - {{ deploy_radio_core_voice_dir }}:/media/voice:ro
+      - {{ deploy_radio_core_pipe_dir }}:{{ deploy_radio_core_pipe_dir }}:rw
+      - /etc/localtime:/etc/localtime:ro
+    command: ["liquidsoap", "/etc/liquidsoap/radio.liq"]

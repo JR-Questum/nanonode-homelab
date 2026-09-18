@@ -1,0 +1,13 @@
+[Unit]
+Description=Fetch the current Spotify album cover for the radio display
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=ARTWORK_API={{ deploy_airable_artwork_api }}
+Environment=ARTWORK_DEST={{ deploy_airable_artwork_dest }}
+Environment=ARTWORK_STATE={{ deploy_airable_artwork_state }}
+Environment=ARTWORK_MAX_BYTES={{ deploy_airable_artwork_max_bytes }}
+Environment=ARTWORK_TIMEOUT={{ deploy_airable_artwork_timeout }}
+ExecStart=/usr/bin/python3 {{ deploy_airable_artwork_dir }}/fetch_artwork.py

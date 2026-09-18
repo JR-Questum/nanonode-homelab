@@ -1,0 +1,41 @@
+services:
+  homeassistant:
+    image: {{ deploy_homeassistant_image }}
+    container_name: homeassistant
+    restart: unless-stopped
+{% if deploy_homeassistant_host_network %}
+    # mDNS, SSDP and DHCP discovery only see the traffic they need from
+    # inside the host's network namespace.
+    network_mode: host
+{% else %}
+    ports:
+      - "{{ deploy_homeassistant_bind }}:{{ deploy_homeassistant_port }}:8123"
+{% endif %}
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - {{ deploy_homeassistant_config_dir }}:/config:rw
+      - /etc/localtime:/etc/localtime:ro
+{% if deploy_homeassistant_bluetooth %}
+      - /run/dbus:/run/dbus:ro
+{% endif %}
+{% if deploy_homeassistant_devices %}
+    devices:
+{% for device in deploy_homeassistant_devices %}
+      - "{{ device }}"
+{% endfor %}
+{% endif %}
+    healthcheck:
+      # Python rather than curl: the image is guaranteed to have one and
+      # not the other. manifest.json answers before onboarding is done,
+      # so a fresh install reports healthy instead of timing out.
+      test:
+        - CMD
+        - python3
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8123/manifest.json')
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # A first start initialises the whole config directory.
+      start_period: 120s

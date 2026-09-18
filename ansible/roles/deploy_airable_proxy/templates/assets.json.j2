@@ -1,0 +1,18 @@
+{% set table = {} %}
+{%- for match, src in deploy_airable_proxy_assets.items() %}
+{%-   set extension = '.' ~ (src | basename).split('.') | last | lower %}
+{%-   set _ = table.update({match: {
+        'file': '/app/asset_' ~ (src | basename),
+        'type': deploy_airable_proxy_asset_types.get(extension,
+                                                     'application/octet-stream'),
+      }}) %}
+{%- endfor %}
+{%- for match, name in deploy_airable_proxy_live_assets.items() %}
+{%-   set extension = '.' ~ name.split('.') | last | lower %}
+{%-   set _ = table.update({match: {
+        'file': '/artwork/' ~ name,
+        'type': deploy_airable_proxy_asset_types.get(extension,
+                                                     'application/octet-stream'),
+      }}) %}
+{%- endfor %}
+{{ table | to_json }}
